@@ -1,0 +1,237 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { connect } from '../src/db.js';
+import { createApp } from '../src/routes.js';
+import { roundsFor, gameNumber, poolSize, ROUNDS_PER_DAY } from '../src/game.js';
+import { peckingOrder, allAgents } from '../src/agents.js';
+import { writeStories } from '../src/hallucination.js';
+
+const config = {
+  baseUrl: 'http://localhost', sessionSecret: 'test-secret', adminPassword: 'pw', graderUrl: 'https://grader.example',
+  linkedin: {}, google: { clientId: 'g', clientSecret: 'gs' }, github: { clientId: 'h', clientSecret: 'hs' },
+  adminEmail: 'admin@example.com',
+};
+const admin = { Authorization: `Basic ${Buffer.from('rob:pw').toString('base64')}` };
+
+async function start(overrides = {}) {
+  const db = await connect();
+  const sent = [];
+  const app = createApp({
+    db, config: { ...config, ...overrides.config },
+    getHeadlines: async () => [
+      { title: 'Lab launches agent that books meetings', link: 'https://news.example/1', source: 'News', summary: 'An agent.' },
+      { title: 'New coding assistant ships', link: 'https://news.example/2', source: 'News', summary: 'Code.' },
+    ],
+    writeStories: async () => ({ stories: [
+      { pick: 1, headline: 'Agent books 400 meetings with itself', body: 'Para one.\n\nPara two.', agent: 'general-assistant' },
+      { pick: 2, headline: 'Coding assistant refactors the office plant', body: 'It was fine.', agent: 'not-a-real-agent' },
+    ] }),
+    sendEmail: async (m) => sent.push(m),
+    fetchProfile: async (provider) => ({ id: `${provider}:42`, name: 'Ada Lovelace', given_name: 'Ada', family_name: 'Lovelace', email: 'ada@example.com', email_verified: true }),
+    ...overrides.routes,
+  });
+  const server = app.listen(0);
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const jar = new Map();
+  const req = async (path, { method = 'GET', form, headers = {}, json } = {}) => {
+    const h = { ...headers, cookie: [...jar].map(([k, v]) => `${k}=${v}`).join('; ') };
+    let body;
+    if (form) (h['content-type'] = 'application/x-www-form-urlencoded'), (body = new URLSearchParams(form).toString());
+    if (json) (h['content-type'] = 'application/json'), (body = JSON.stringify(json));
+    const res = await fetch(base + path, { method, headers: h, body, redirect: 'manual' });
+    for (const c of res.headers.getSetCookie()) {
+      const [pair] = c.split(';');
+      const i = pair.indexOf('=');
+      jar.set(pair.slice(0, i), pair.slice(i + 1));
+    }
+    return { status: res.status, location: res.headers.get('location'), text: await res.text() };
+  };
+  return { db, req, sent, close: () => server.close() };
+}
+
+test('public pages load', async (t) => {
+  const s = await start();
+  t.after(s.close);
+  for (const p of ['/', '/agents', '/agents/coder', '/pecking-order', '/pecking-order?category=writing', '/news', '/game', '/articles',
+    '/articles/how-the-polly-test-works', '/get-polly-tested', '/signin', '/privacy', '/squawk', '/sitemap.xml', '/robots.txt']) {
+    assert.equal((await s.req(p)).status, 200, p);
+  }
+  assert.equal((await s.req('/agents/nope')).status, 404);
+  assert.equal((await s.req('/articles/nope')).status, 404);
+});
+
+test('every agent page and article link points at a real agent', async (t) => {
+  const s = await start();
+  t.after(s.close);
+  const ids = new Set(allAgents().map((a) => a.id));
+  for (const p of ['/articles/we-tested-33-agents', '/articles/ask-it-something-it-cant-know', '/articles/agents-that-wont-stop-talking',
+    '/articles/the-plain-assistant-beat-the-research-agents']) {
+    for (const [, id] of (await s.req(p)).text.matchAll(/href="\/agents\/([a-z0-9-]+)"/g)) assert.ok(ids.has(id), `${p} links to ${id}`);
+  }
+});
+
+test('the Pecking Order shares places on ties and is sorted', () => {
+  const rows = peckingOrder();
+  for (let i = 1; i < rows.length; i++) {
+    assert.ok(rows[i].score <= rows[i - 1].score);
+    if (rows[i].score === rows[i - 1].score) assert.equal(rows[i].place, rows[i - 1].place);
+  }
+  assert.ok(peckingOrder('writing').every((a) => a.category === 'writing'));
+});
+
+test('the game gives the same three rounds to everyone each day, with the answer on either side', () => {
+  const a = roundsFor('2026-11-21');
+  assert.equal(a.length, ROUNDS_PER_DAY);
+  assert.deepEqual(a, roundsFor('2026-11-21'));
+  assert.equal(gameNumber('2026-11-20'), 1);
+  for (const r of a) assert.ok([0, 1].includes(r.wrong) && r.answers.length === 2);
+  // No round repeats within a cycle.
+  const perCycle = Math.floor(poolSize() / ROUNDS_PER_DAY);
+  const seen = new Set();
+  for (let d = 0; d < perCycle; d++) {
+    const day = new Date(Date.parse('2026-11-20T00:00:00Z') + d * 864e5).toISOString().slice(0, 10);
+    for (const r of roundsFor(day)) assert.ok(!seen.has(r.id), r.id), seen.add(r.id);
+  }
+});
+
+test('the game page cannot be broken out of by answer text', async (t) => {
+  const s = await start();
+  t.after(s.close);
+  const html = (await s.req('/game')).text;
+  const json = html.match(/<script type="application\/json" id="game-data">([\s\S]*?)<\/script>/)[1];
+  assert.ok(!json.includes('<'));
+  assert.equal(JSON.parse(json).rounds.length, ROUNDS_PER_DAY);
+});
+
+test('satire only keeps known agents for the Polly box', async () => {
+  const stories = await writeStories({
+    candidates: [{ title: 'a', link: 'https://x/1', source: 'S' }, { title: 'b', link: 'https://x/2', source: 'S' }],
+    agents: [{ id: 'coder', name: 'Coder', description: 'codes' }],
+    write: async () => ({ stories: [{ pick: 1, headline: 'H1', body: 'B1', agent: 'coder' }, { pick: 2, headline: 'H2', body: 'B2', agent: 'made-up' }, { pick: 2, headline: 'dup', body: 'x', agent: '' }] }),
+  });
+  assert.equal(stories.length, 2);
+  assert.equal(stories[0].agent_id, 'coder');
+  assert.equal(stories[1].agent_id, null);
+});
+
+test('the daily run starts paused, then writes stories with a Polly box once resumed', async (t) => {
+  const s = await start();
+  t.after(s.close);
+  assert.deepEqual(JSON.parse((await s.req('/api/cron/hallucination')).text), { paused: true, created: 0 });
+  assert.equal((await s.req('/admin/news/resume', { method: 'POST', headers: admin })).status, 303);
+  assert.equal(JSON.parse((await s.req('/api/cron/hallucination')).text).created, 2);
+  // A second call the same day writes nothing.
+  assert.equal(JSON.parse((await s.req('/api/cron/hallucination')).text).created, 0);
+  const news = (await s.req('/news')).text;
+  assert.match(news, /Agent books 400 meetings with itself/);
+  assert.match(news, /class="polly-box"[\s\S]*General Assistant/);
+  const [story] = await s.db.stories.latest();
+  await s.req(`/admin/news/${story.id}/hide`, { method: 'POST', headers: admin });
+  assert.doesNotMatch((await s.req('/news')).text, /400 meetings/);
+});
+
+test('admin pages need the password', async (t) => {
+  const s = await start();
+  t.after(s.close);
+  for (const p of ['/admin', '/admin/news', '/admin/squawk', '/admin/listings']) {
+    assert.equal((await s.req(p)).status, 401, p);
+    assert.equal((await s.req(p, { headers: admin })).status, 200, p);
+  }
+});
+
+test('sign in with GitHub, join, keep a streak, invite, then remove yourself', async (t) => {
+  const s = await start();
+  t.after(s.close);
+  const go = await s.req('/auth/github');
+  assert.equal(go.status, 302);
+  assert.match(go.location, /^https:\/\/github\.com\/login\/oauth\/authorize\?/);
+  const state = new URL(go.location).searchParams.get('state');
+  assert.equal((await s.req(`/auth/github/callback?code=abc&state=wrong`)).status, 400);
+  const back = await s.req(`/auth/github/callback?code=abc&state=${state}`);
+  assert.equal(back.location, '/join');
+  assert.equal((await s.req('/join', { method: 'POST', form: { role: 'builder' } })).status, 400); // no consent
+  const done = await s.req('/join', { method: 'POST', form: { role: 'builder', squawk: 'yes', consent: 'yes' } });
+  assert.equal(done.location, '/me');
+  const member = await s.db.get('github:42');
+  assert.equal(member.role, 'builder');
+  assert.equal(member.squawk_optin, true);
+  assert.equal(member.member_number, 1);
+  const me = await s.req('/me');
+  assert.match(me.text, /Founding member #1/);
+  const res = JSON.parse((await s.req('/api/game', { method: 'POST', json: { correct: 2 } })).text);
+  assert.equal(res.streak, 1);
+  assert.equal((await s.req('/api/game', { method: 'POST', json: { correct: 9 } })).status, 400);
+  // Signing in with Google using the same verified email lands on the same account.
+  const g = await s.req('/auth/google');
+  const gState = new URL(g.location).searchParams.get('state');
+  assert.equal((await s.req(`/auth/google/callback?code=x&state=${gState}`)).location, '/me');
+  assert.equal(await s.db.count(), 1);
+  assert.equal((await s.req('/remove', { method: 'POST' })).status, 200);
+  assert.equal(await s.db.count(), 0);
+});
+
+test('one person signing in two ways gets one account', async () => {
+  const db = await connect();
+  const a = await db.recordLogin({ id: 'github:1', name: 'Ada', email: 'ada@example.com', email_verified: true });
+  const b = await db.recordLogin({ id: 'google:9', name: 'Ada L', email: 'ADA@example.com', email_verified: true });
+  assert.equal(a, 'github:1');
+  assert.equal(b, 'github:1');
+  assert.equal(await db.memberForEmail('ada@example.com'), 'github:1');
+  assert.equal(await db.memberForEmail('new@example.com'), 'email:new@example.com');
+});
+
+test('sign in by email: link, confirm, name required for email members', async (t) => {
+  const s = await start();
+  t.after(s.close);
+  assert.equal((await s.req('/auth/email', { method: 'POST', form: { email: 'nope' } })).status, 400);
+  await s.req('/auth/email', { method: 'POST', form: { email: 'bob@example.com' } });
+  const token = new URL(s.sent[0].text.match(/https?:\/\/\S+/)[0]).searchParams.get('token');
+  assert.match((await s.req(`/auth/email/verify?token=${token}`)).text, /Sign me in/);
+  assert.equal((await s.req('/auth/email/verify', { method: 'POST', form: { token } })).location, '/join');
+  assert.equal((await s.req('/auth/email/verify', { method: 'POST', form: { token } })).status, 400); // used up
+  assert.equal((await s.req('/join', { method: 'POST', form: { consent: 'yes' } })).status, 400);
+  assert.equal((await s.req('/join', { method: 'POST', form: { name: 'Bob Smith', consent: 'yes' } })).location, '/me');
+  assert.equal((await s.db.get('email:bob@example.com')).first_name, 'Bob');
+});
+
+test('suggesting an agent needs a member, then the organiser lists it', async (t) => {
+  const s = await start();
+  t.after(s.close);
+  assert.equal((await s.req('/agents/suggest', { method: 'POST', form: { name: 'X', url: 'https://x.example' } })).location, '/signin');
+  const go = await s.req('/auth/github');
+  await s.req(`/auth/github/callback?code=a&state=${new URL(go.location).searchParams.get('state')}`);
+  await s.req('/join', { method: 'POST', form: { consent: 'yes' } });
+  assert.equal((await s.req('/agents/suggest', { method: 'POST', form: { name: 'X', url: 'ftp://bad' } })).status, 400);
+  assert.equal((await s.req('/agents/suggest', { method: 'POST', form: { name: 'Mystery Agent', url: 'https://mystery.example', category: 'research' } })).status, 303);
+  assert.doesNotMatch((await s.req('/agents')).text, /Mystery Agent/);
+  const [l] = await s.db.listings.all();
+  await s.req(`/admin/listings/${l.id}/list`, { method: 'POST', headers: admin });
+  assert.match((await s.req('/agents')).text, /Not Polly Tested yet[\s\S]*Mystery Agent/);
+});
+
+test('forms from another site are refused', async (t) => {
+  const s = await start();
+  t.after(s.close);
+  assert.equal((await s.req('/logout', { method: 'POST', headers: { origin: 'https://evil.example' } })).status, 403);
+});
+
+test('The Squawk: draft, test send, send once, unsubscribe', async (t) => {
+  const s = await start();
+  t.after(s.close);
+  const go = await s.req('/auth/github');
+  await s.req(`/auth/github/callback?code=a&state=${new URL(go.location).searchParams.get('state')}`);
+  await s.req('/join', { method: 'POST', form: { consent: 'yes', squawk: 'yes' } });
+  const draft = await s.req('/admin/squawk', { method: 'POST', headers: admin });
+  const id = draft.location.split('/').pop();
+  assert.match((await s.req(`/admin/squawk/${id}`, { headers: admin })).text, /The Pecking Order this week/);
+  await s.req(`/admin/squawk/${id}/test`, { method: 'POST', headers: admin });
+  assert.match(s.sent.at(-1).subject, /^\[TEST\]/);
+  await s.req(`/admin/squawk/${id}/send`, { method: 'POST', headers: admin, form: { confirm: 'yes' } });
+  await s.req(`/admin/squawk/${id}/send`, { method: 'POST', headers: admin, form: { confirm: 'yes' } });
+  const real = s.sent.filter((m) => m.to === 'ada@example.com');
+  assert.equal(real.length, 1);
+  const unsub = real[0].headers['List-Unsubscribe'].slice(1, -1).replace('http://localhost', '');
+  assert.equal((await s.req(unsub, { method: 'POST' })).status, 200);
+  assert.equal((await s.db.get('github:42')).squawk_optin, false);
+  assert.equal((await s.req(`/squawk/${id}`)).status, 200);
+});

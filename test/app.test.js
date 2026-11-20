@@ -60,6 +60,17 @@ test('public pages load', async (t) => {
   assert.equal((await s.req('/articles/nope')).status, 404);
 });
 
+test('the site is always light, with no dark mode', async (t) => {
+  const { req, close } = await start();
+  t.after(close);
+  const css = await req('/style.css');
+  assert.equal(css.status, 200);
+  assert.ok(!css.text.includes('prefers-color-scheme: dark'));
+  assert.match(css.text, /color-scheme: light/);
+  const home = await req('/');
+  assert.ok(!home.text.includes('prefers-color-scheme: dark'));
+});
+
 test('every agent page and article link points at a real agent', async (t) => {
   const s = await start();
   t.after(s.close);

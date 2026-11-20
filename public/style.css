@@ -1,6 +1,6 @@
-/* Agent Parrot. Colours, corners and shadows are variables here; dark-mode values are just below. */
+/* Agent Parrot. Colours, corners and shadows are variables here. The site is always light. */
 :root {
-  --bg: #f7faf6;
+  --bg: #fcfdfc;
   --surface: #ffffff;
   --surface-2: #eef5ef;
   --ink: #0e1a14;
@@ -25,20 +25,6 @@
   --body: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --mono: 'JetBrains Mono', ui-monospace, monospace;
   color-scheme: light;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0b1510;
-    --surface: #12201a;
-    --surface-2: #182a22;
-    --ink: #eaf3ee;
-    --muted: #9fb2a8;
-    --line: #24382e;
-    --green-ink: #4ade80;
-    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25);
-    --hero-glow: radial-gradient(600px 300px at 90% 0%, rgba(18, 183, 106, .22), transparent 70%), radial-gradient(400px 240px at 0% 100%, rgba(255, 197, 49, .1), transparent 70%);
-    color-scheme: dark;
-  }
 }
 
 * { box-sizing: border-box; }
@@ -116,7 +102,6 @@ legend { font-weight: 700; padding: 0 6px; }
 .btn-provider:hover { border-color: var(--ink); }
 .btn-linkedin { background: #0a66c2; border-color: #0a66c2; color: #fff; }
 .btn-github { background: #1f2328; border-color: #1f2328; color: #fff; }
-@media (prefers-color-scheme: dark) { .btn-github { background: #f0f3f6; border-color: #f0f3f6; color: #1f2328; } }
 .email-login { max-width: 380px; margin-top: 12px; }
 .email-login label { font-size: .85rem; color: var(--muted); }
 .email-row { display: flex; gap: 8px; }

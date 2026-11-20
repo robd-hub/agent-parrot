@@ -1,0 +1,23 @@
+{
+  "name": "agent-parrot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Agent Parrot: the AI agent community where every listed agent has been tested.",
+  "type": "module",
+  "main": "src/index.js",
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --env-file-if-exists=.env --watch src/index.js",
+    "test": "node --test",
+    "sync-grades": "node scripts/sync-grades.mjs ../agent-report-card/data"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.3.0",
+    "@electric-sql/pglite": "^0.5.11",
+    "express": "^5.1.0",
+    "pg": "^8.23.1"
+  }
+}

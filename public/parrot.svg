@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="Agent Parrot">
+  <!-- Polly, the Agent Parrot. A green parrot in profile with a big yellow beak and a knowing look. -->
+  <circle cx="60" cy="60" r="58" fill="#0E3B2A"/>
+  <!-- tail and wing -->
+  <path d="M38 104 C30 92 30 78 36 68 L52 86 Z" fill="#2E90FA"/>
+  <path d="M44 108 C40 96 42 84 48 76 L60 92 Z" fill="#F04438"/>
+  <!-- body and head -->
+  <path d="M40 92 C28 70 32 40 54 28 C72 18 92 26 96 44 C99 58 92 66 84 70 C80 84 70 96 54 100 C48 101 43 98 40 92 Z" fill="#12B76A"/>
+  <!-- crest -->
+  <path d="M54 28 C50 18 54 10 62 8 C60 14 62 18 66 22 C66 14 72 10 78 12 C74 16 74 20 76 24 Z" fill="#12B76A"/>
+  <!-- wing -->
+  <path d="M46 62 C54 58 66 62 70 72 C72 82 64 92 52 94 C46 86 44 74 46 62 Z" fill="#0A8F52"/>
+  <path d="M50 70 C56 70 62 74 63 80" stroke="#12B76A" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <!-- face patch -->
+  <ellipse cx="78" cy="44" rx="13" ry="11" fill="#FFFFFF"/>
+  <!-- eye -->
+  <circle cx="80" cy="43" r="6.5" fill="#0E1A14"/>
+  <circle cx="82.2" cy="40.8" r="2.2" fill="#FFFFFF"/>
+  <!-- beak: upper hook and lower mandible -->
+  <path d="M88 38 C102 33 114 42 112 58 C111 67 106 73 101 75 C103 66 100 59 90 57 Z" fill="#FFC531"/>
+  <path d="M89 57 C97 57 100 62 97 67 C93 69 89 67 87 62 Z" fill="#E0A100"/>
+  <!-- the raised eyebrow: Polly has seen your agent's answer -->
+  <path d="M70 31 C76 27 83 27 89 31" stroke="#0E1A14" stroke-width="3.6" fill="none" stroke-linecap="round"/>
+  <!-- cheek -->
+  <circle cx="72" cy="56" r="4" fill="#F04438" opacity=".85"/>
+</svg>

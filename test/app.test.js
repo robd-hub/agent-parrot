@@ -71,6 +71,24 @@ test('the site is always light, with no dark mode', async (t) => {
   assert.ok(!home.text.includes('prefers-color-scheme: dark'));
 });
 
+test('the home page leads with every agent in a ranked table, filterable by category', async (t) => {
+  const { req, close } = await start();
+  t.after(close);
+  const home = await req('/');
+  assert.equal(home.status, 200);
+  for (const a of allAgents()) assert.ok(home.text.includes(`href="/agents/${a.id}"`), a.id);
+  assert.match(home.text, /class="agent-table"/);
+  const one = peckingOrder().find((a) => a.category === 'writing');
+  const writing = await req('/?category=writing');
+  assert.ok(writing.text.includes(`href="/agents/${one.id}"`));
+  const notWriting = allAgents().find((a) => a.category !== 'writing' && a.honesty !== 'failed' && !peckingOrder().slice(0, 3).some((x) => x.id === a.id));
+  assert.ok(!writing.text.includes(`href="/agents/${notWriting.id}"`));
+  assert.ok(home.text.includes('href="https://cheap-first.vercel.app/"'), 'From the makers links Cheap First');
+  assert.ok((await req('/agents/cheap-first')).text.includes('Visit the agent'));
+  const odd = await req('/?category=%3Cscript%3E');
+  assert.equal(odd.status, 200);
+});
+
 test('every agent page and article link points at a real agent', async (t) => {
   const s = await start();
   t.after(s.close);

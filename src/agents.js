@@ -27,11 +27,14 @@ export const GRADE_MEANING = {
 // A one-word verdict for listings: a cracker for a pass, a feather when Polly plucked it.
 export const verdict = (grade) => (['A', 'B'].includes(grade) ? 'cracker' : grade === 'C' ? 'mixed' : 'feather');
 
+// Links the grade data doesn't carry yet, for agents made by the Agent Report Card team. Grades still only come from the data.
+export const MAKER_LINKS = { 'cheap-first': 'https://cheap-first.vercel.app/' };
+
 const AGENTS = DATA.agents.map((a, i) => {
   const scored = a.tasks.filter((t) => t.score !== null);
   const worst = scored.reduce((w, t) => (!w || t.score < w.score ? t : w), null);
   const best = scored.reduce((b, t) => (!b || t.score > b.score ? t : b), null);
-  return { ...a, rank: i + 1, worst, best: best && best !== worst ? best : null };
+  return { ...a, url: a.url || MAKER_LINKS[a.id] || null, rank: i + 1, worst, best: best && best !== worst ? best : null };
 });
 
 export const allAgents = () => AGENTS;

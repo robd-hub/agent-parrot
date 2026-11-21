@@ -113,7 +113,7 @@ export async function fetchMcpPages({ fetchFn = fetch, cursor = null, since = nu
 // version that lacks one of them, the basic query is used instead, so the copy keeps working.
 const agent0Query = (full) => `query ($after: String!, $since: BigInt!) {
   agents(first: 500, orderBy: id, orderDirection: asc, where: { id_gt: $after, updatedAt_gte: $since }) {
-    id agentId owner updatedAt totalFeedback${full ? ' createdAt agentURI' : ''}
+    id agentId owner updatedAt totalFeedback${full ? ' createdAt agentURI lastActivity' : ''}
     registrationFile { name description image active mcpEndpoint a2aEndpoint x402Support${full ? ' mcpVersion a2aVersion ens did supportedTrusts a2aSkills mcpTools' : ''} }
   }
 }`;
@@ -148,6 +148,8 @@ export function fromErc8004(a, chain) {
       ens: clip(f?.ens, 100) || null, did: clip(f?.did, 200) || null,
       trusts: list(f?.supportedTrusts), skills: list(f?.a2aSkills), tools: list(f?.mcpTools),
       feedback: Number(a?.totalFeedback ?? 0) || 0,
+      // When anything last happened to this agent on the registry (feedback, updates): the index's own record.
+      lastActivity: Number(a?.lastActivity) > 0 ? new Date(Number(a.lastActivity) * 1000).toISOString() : null,
     },
   };
 }

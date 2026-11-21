@@ -4,6 +4,7 @@ import { syncDirectories, SOURCES } from './directories.js';
 import { listedPage, listedAgentPage, makerPage, adminDirectoriesPage, PER_PAGE } from './directory-views.js';
 import { listedOn } from './directories.js';
 import { checkHealth } from './health.js';
+import { checkActivity } from './activity.js';
 import { makerKeyFrom, makerReputation, testedByMaker } from './makers.js';
 import { pageNotFound } from './views.js';
 
@@ -62,17 +63,22 @@ export function directoryRoutes({ db, config, adminOnly, fetchFn = fetch, lookup
     const state = {};
     for (const id of Object.keys(SOURCES)) state[`sync_${id}_at`] = await db.settings.get(`sync_${id}_at`);
     res.set('Cache-Control', 'private, no-store');
-    res.send(adminDirectoriesPage({ counts: await db.listed.counts(), state, hasGraphKey: Boolean(config.graphApiKey), report, health: await db.listed.healthCounts(), healthReport }));
+    res.send(adminDirectoriesPage({ counts: await db.listed.counts(), state, hasGraphKey: Boolean(config.graphApiKey), hasGithubToken: Boolean(config.githubToken), report, health: await db.listed.healthCounts(), healthReport }));
   };
   app.get('/admin/directories', adminOnly, (req, res) => adminPage(res));
   app.post('/admin/directories/sync', adminOnly, async (req, res) => adminPage(res, await syncDirectories({ db, config, fetchFn })));
 
-  app.post('/admin/directories/health', adminOnly, async (req, res) => adminPage(res, null, await checkHealth({ db, fetchFn, lookup, budgetMs: 60000 })));
+  app.post('/admin/directories/health', adminOnly, async (req, res) => adminPage(res, null, {
+    ...await checkHealth({ db, fetchFn, lookup, budgetMs: 50000 }),
+    activity: await checkActivity({ db, fetchFn, token: config.githubToken, budgetMs: 15000 }),
+  }));
 
   // Vercel Cron calls this twice a day (see vercel.json).
   app.get('/api/cron/health', async (req, res) => {
     if (config.cronSecret && req.headers.authorization !== `Bearer ${config.cronSecret}`) return res.status(401).json({ error: 'unauthorised' });
-    res.json(await checkHealth({ db, fetchFn, lookup }));
+    // Health first, then GitHub activity with what's left of the function's 5 minutes.
+    const health = await checkHealth({ db, fetchFn, lookup, budgetMs: 180000 });
+    res.json({ ...health, activity: await checkActivity({ db, fetchFn, token: config.githubToken, budgetMs: 40000 }) });
   });
 
   // Vercel Cron calls this every morning (see vercel.json).

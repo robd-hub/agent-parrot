@@ -101,17 +101,19 @@ export function createRoutes({
 
   // ----- Public pages -----
 
+  const pickCategory = (v) => (CATEGORIES.some((c) => c.id === v) ? v : '');
+
   app.get('/', async (req, res) => {
     const member = await memberOf(req);
     const inviter = !member && req.track.ref ? await db.invites.byCode(req.track.ref) : null;
     res.send(views.homePage({
-      member, memberCount: await db.count(), stats: stats(), top: peckingOrder().slice(0, 6), stories: await db.stories.latest(),
+      member, memberCount: await db.count(), stats: { ...stats(), top3: peckingOrder().slice(0, 3) },
+      rows: peckingOrder(pickCategory(req.query.category)), category: pickCategory(req.query.category),
+      honestyFails: allAgents().filter((a) => a.honesty === 'failed'), makers: agentById('cheap-first'), stories: await db.stories.latest(),
       articles: ARTICLES.slice(0, 3), gameNo: gameNumber(today()), providers: signInOptions(), emailLogin: Boolean(sendEmail), inviter,
       error: req.query.error === 'cancelled' ? 'Sign-in was cancelled. You can try again.' : null,
     }));
   });
-
-  const pickCategory = (v) => (CATEGORIES.some((c) => c.id === v) ? v : '');
 
   const directory = async (req, res, extra = {}, status = 200) => {
     const category = pickCategory(req.query.category);

@@ -58,8 +58,7 @@ export function layout(title, body, { wide = false, description = DEFAULT_DESCRI
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
-  <meta name="theme-color" content="#f7faf6" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0b1510" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#ffffff">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -149,50 +148,90 @@ export function pollyBox(agent) {
 
 // ----- Home -----
 
-export function homePage({ member, memberCount, stats, top, stories, articles, gameNo, providers, emailLogin, inviter, error }) {
+// A row of small bars, one per task, like a price sparkline: how the agent scored on each answer.
+function taskBars(tasks) {
+  const bars = tasks.map((t) => (t.score === null
+    ? '<span class="bar none" title="Not scored"></span>'
+    : `<span class="bar ${t.score >= 80 ? 'hi' : t.score >= 50 ? 'mid' : 'lo'}" style="height:${Math.max(8, Number(t.score))}%" title="${Number(t.score)}"></span>`)).join('');
+  return `<span class="task-bars" aria-label="Task scores: ${tasks.map((t) => (t.score === null ? 'not scored' : Number(t.score))).join(', ')}">${bars}</span>`;
+}
+
+const shortDate = (iso) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+
+// The ranked table of every agent: the centre of the home page.
+export function agentTable(rows) {
+  const body = rows.map((a) => `<tr>
+      <td class="place">${Number(a.place)}</td>
+      <td class="agent-cell"><a href="/agents/${esc(a.id)}"><img src="/parrot.svg" width="24" height="24" alt=""><span><strong>${esc(a.name)}</strong><span class="muted small">${esc(a.description)}</span></span></a></td>
+      <td>${gradeBadge(a.grade, { size: 'sm' })}</td>
+      <td class="num">${Number(a.score)}</td>
+      <td class="hide-sm">${taskBars(a.tasks)}</td>
+      <td class="hide-sm">${honestyTag(a.honesty) || '<span class="muted small">Not asked</span>'}</td>
+      <td class="hide-md muted small">${esc(categoryName(a.category))}</td>
+      <td class="hide-md muted small num-plain">${esc(shortDate(a.gradedAt))}</td></tr>`).join('');
+  return `<div class="table-card table-scroll"><table class="agent-table">
+      <thead><tr><th>#</th><th>Agent</th><th>Grade</th><th class="num">Squawk Score</th><th class="hide-sm">Task scores</th><th class="hide-sm">Honesty</th><th class="hide-md">Category</th><th class="hide-md">Tested</th></tr></thead>
+      <tbody>${body || '<tr><td colspan="8" class="muted">No agents in this category yet.</td></tr>'}</tbody>
+    </table></div>`;
+}
+
+export function homePage({ member, memberCount, stats, rows, category, honestyFails, makers, stories, articles, gameNo, providers, emailLogin, inviter, error }) {
   const firstName = esc(member?.first_name || member?.name || '');
   const join = member
     ? (member.consent_at
       ? `<p class="notice">Welcome back${firstName ? `, ${firstName}` : ''}. <a href="/me">Your perch</a></p>`
       : `<p class="notice">You're signed in but haven't finished joining. <a href="/join">Finish joining</a></p>`)
     : `${signInButtons(providers)}${emailLogin ? emailLoginForm() : ''}`;
-  const pecking = top.map((a) => `<li><a href="/agents/${esc(a.id)}"><span class="place">${Number(a.place)}</span>${gradeBadge(a.grade, { size: 'sm' })}<span class="pname">${esc(a.name)}</span><span class="pscore">${Number(a.score)}</span></a></li>`).join('');
+  const miniRow = (a, right) => `<li><a href="/agents/${esc(a.id)}">${gradeBadge(a.grade, { size: 'sm' })}<span class="pname">${esc(a.name)}</span><span class="pscore">${right}</span></a></li>`;
+  const top3 = rows.length && !category ? stats.top3 : rows.slice(0, 3);
   return layout(`${BRAND}: the AI agent directory where every agent is tested`, `
-    <section class="hero">
-      <div class="hero-text">
-        <p class="eyebrow">For people who build and use AI agents</p>
-        <h1>Every agent here has been <em>Polly Tested.</em></h1>
-        <p class="lead">Real tasks, two independent judges and one question no agent can know the answer to.
-          Find agents that actually do the job, laugh at the news, and play the daily game.</p>
-        ${error ? `<p class="error">${esc(error)}</p>` : ''}
-        ${inviter ? `<p class="invited">${esc(inviter.first_name)} invited you to the flock.</p>` : ''}
-        <div class="hero-actions"><a class="btn" href="/agents">Browse tested agents</a><a class="btn ghost" href="/game">Play today's game</a></div>
-        ${member ? join : `<div class="join-box"><p class="join-title">Join the flock. It's free.</p>${join}
-          <p class="fine">${memberCount >= 5 ? `${Number(memberCount)} people have joined. ` : 'Be one of the first members. '}We only get your name, email and photo, and never post for you.</p></div>`}
-      </div>
-      <figure class="hero-polly"><img src="/parrot.svg" alt="Polly, the Agent Parrot, with one eyebrow raised" width="260" height="260">
-        <figcaption>Polly has read your agent's answer.</figcaption></figure>
+    <section class="market-head">
+      <h1>Every AI agent here has been <em>Polly Tested</em></h1>
+      <p class="market-line">There are <strong>${Number(stats.count)}</strong> tested agents. <strong>${Number(stats.grades.A)}</strong> got an A,
+        <strong>${Number(stats.honestyFailed.length)}</strong> made something up, and every one of the <strong>${Number(stats.tasks)}</strong> answers was scored by two independent judges.</p>
+      ${error ? `<p class="error">${esc(error)}</p>` : ''}
+      ${inviter ? `<p class="invited">${esc(inviter.first_name)} invited you to the flock.</p>` : ''}
     </section>
     ${ticker(stories)}
-    <section class="stat-strip" aria-label="The Polly Test so far">
-      <div><strong>${Number(stats.count)}</strong><span>agents Polly Tested</span></div>
-      <div><strong>${Number(stats.tasks)}</strong><span>answers judged twice</span></div>
-      <div><strong>${Number(stats.grades.A)}</strong><span>got an A</span></div>
-      <div><strong>${Number(stats.honestyFailed.length)}</strong><span>made something up</span></div>
-    </section>
-    <section class="two-col">
-      <div class="card">
-        <div class="card-head"><h2>The Pecking Order</h2><a href="/pecking-order">See all ${Number(stats.count)}</a></div>
-        <ol class="pecking-mini">${pecking}</ol>
+    <section class="highlights" aria-label="Highlights">
+      <div class="hl-card">
+        <div class="card-head"><h2>Top of the Pecking Order</h2><a href="/pecking-order">More</a></div>
+        <ol class="pecking-mini">${top3.map((a) => miniRow(a, Number(a.score))).join('')}</ol>
       </div>
-      <div class="daily-col">
+      <div class="hl-card">
+        <div class="card-head"><h2>Made something up</h2><a href="/articles/ask-it-something-it-cant-know">Why</a></div>
+        <ol class="pecking-mini">${honestyFails.slice(0, 3).map((a) => miniRow(a, '<span class="tag tag-fail">Made it up</span>')).join('') || '<li class="muted small">Nobody yet.</li>'}</ol>
+      </div>
+      <div class="hl-card hl-stack">
         <a class="daily-teaser" href="/game"><span class="eyebrow">Spot the Hallucination #${Number(gameNo)}</span>
           <strong>Two answers. One is making it up. Can you tell which?</strong><span class="go">Play</span></a>
         <a class="daily-teaser" href="/news"><span class="eyebrow">The Daily Hallucination</span>
           <strong>${stories[0] ? esc(stories[0].headline) : "Today's AI news, made slightly less believable."}</strong><span class="go">Read</span></a>
-        <a class="daily-teaser accent" href="/get-polly-tested"><span class="eyebrow">Built an agent?</span>
-          <strong>Get it Polly Tested and earn your place in the Pecking Order.</strong><span class="go">Get tested</span></a>
       </div>
+    </section>
+    <section class="market">
+      <div class="card-head"><h2>AI agents by Squawk Score</h2><a href="/get-polly-tested">Get your agent tested</a></div>
+      ${categoryTabs('/', category)}
+      ${agentTable(rows)}
+    </section>
+    ${makers ? `<section class="makers" aria-label="From the makers">
+      <p class="eyebrow">From the makers of Agent Parrot</p>
+      <div class="makers-grid">
+        <a class="maker-card" href="https://cheap-first.vercel.app/" rel="noopener">
+          ${gradeBadge(makers.grade, { size: 'sm' })}<span><strong>Cheap First</strong>
+          <span class="muted small">Answers with a cheap model first, has the answer checked, and only pays for a premium model when the check fails. Polly Tested: ${esc(makers.grade)}, Squawk Score ${Number(makers.score)}.</span></span><span class="go">Try it</span></a>
+        <a class="maker-card" href="${esc(graderUrl())}" rel="noopener">
+          <img src="/parrot.svg" width="32" height="32" alt=""><span><strong>Agent Report Card</strong>
+          <span class="muted small">The grader behind every Polly Test. Real tasks, a question your agent can't know, and two independent judges.</span></span><span class="go">Grade your agent</span></a>
+      </div>
+      <p class="fine">We built these, so we've said so. Cheap First was graded by the same test as every other agent.</p>
+    </section>` : ''}
+    <section class="two-col">
+      ${member ? `<div class="card">${join}</div>` : `<div class="card join-card"><h2>Join the flock. It's free.</h2>
+        <p class="muted">Play the daily game with a streak, get The Squawk every week, and suggest agents for Polly to test.</p>${join}
+        <p class="fine">${memberCount >= 5 ? `${Number(memberCount)} people have joined. ` : 'Be one of the first members. '}We only get your name, email and photo, and never post for you.</p></div>`}
+      <a class="daily-teaser accent" href="/get-polly-tested"><span class="eyebrow">Built an agent?</span>
+        <strong>Get it Polly Tested and earn your place in the Pecking Order.</strong><span class="go">Get tested</span></a>
     </section>
     <section class="section">
       <div class="card-head"><h2>From the perch</h2><a href="/articles">All articles</a></div>
@@ -207,7 +246,7 @@ export function homePage({ member, memberCount, stats, top, stories, articles, g
         <div class="step"><span class="num">4</span><h3>A grade you can check</h3><p>Every answer and every score is published, so you can see exactly why.</p></div>
       </div>
       <p><a href="/articles/how-the-polly-test-works">Read the full method</a></p>
-    </section>`, { fullTitle: true });
+    </section>`, { fullTitle: true, wide: true });
 }
 
 export function articleCard(x) {

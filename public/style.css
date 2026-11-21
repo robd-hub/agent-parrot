@@ -1,11 +1,11 @@
-/* Agent Parrot. Colours, corners and shadows are variables here; dark-mode values are just below. */
+/* Agent Parrot. Colours, corners and shadows are variables here. The site is always light. */
 :root {
-  --bg: #f7faf6;
+  --bg: #ffffff;
   --surface: #ffffff;
-  --surface-2: #eef5ef;
+  --surface-2: #f4f7f5;
   --ink: #0e1a14;
   --muted: #56655d;
-  --line: #dbe6de;
+  --line: #e6ece8;
   --green: #12b76a;
   --green-deep: #0e3b2a;
   --green-ink: #087443;
@@ -25,20 +25,6 @@
   --body: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --mono: 'JetBrains Mono', ui-monospace, monospace;
   color-scheme: light;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0b1510;
-    --surface: #12201a;
-    --surface-2: #182a22;
-    --ink: #eaf3ee;
-    --muted: #9fb2a8;
-    --line: #24382e;
-    --green-ink: #4ade80;
-    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25);
-    --hero-glow: radial-gradient(600px 300px at 90% 0%, rgba(18, 183, 106, .22), transparent 70%), radial-gradient(400px 240px at 0% 100%, rgba(255, 197, 49, .1), transparent 70%);
-    color-scheme: dark;
-  }
 }
 
 * { box-sizing: border-box; }
@@ -116,7 +102,6 @@ legend { font-weight: 700; padding: 0 6px; }
 .btn-provider:hover { border-color: var(--ink); }
 .btn-linkedin { background: #0a66c2; border-color: #0a66c2; color: #fff; }
 .btn-github { background: #1f2328; border-color: #1f2328; color: #fff; }
-@media (prefers-color-scheme: dark) { .btn-github { background: #f0f3f6; border-color: #f0f3f6; color: #1f2328; } }
 .email-login { max-width: 380px; margin-top: 12px; }
 .email-login label { font-size: .85rem; color: var(--muted); }
 .email-row { display: flex; gap: 8px; }
@@ -318,3 +303,47 @@ th { font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; color:
 .footer { border-top: 1px solid var(--line); background: var(--surface); }
 .footer-inner { max-width: 1160px; margin: 0 auto; padding: 28px 16px; color: var(--muted); font-size: .9rem; }
 .footer-inner div { display: flex; align-items: center; gap: 10px; color: var(--ink); margin-bottom: 10px; }
+
+/* ----- Home: CoinGecko-style ranked table ----- */
+.wrap.wide { max-width: 1280px; }
+.market-head { padding: 8px 0 4px; }
+.market-head h1 { font-size: clamp(1.6rem, 3.4vw, 2.2rem); margin-bottom: .3em; }
+.market-head h1 em { font-style: normal; color: var(--green); }
+.market-line { color: var(--muted); max-width: 60rem; }
+.market-line strong { color: var(--ink); font-family: var(--mono); }
+.highlights { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 16px; }
+.hl-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; }
+.hl-card h2 { font-size: 1.05rem; }
+.hl-card .card-head { margin-bottom: 4px; }
+.hl-card .pecking-mini a { padding: 8px 4px; }
+.hl-stack { display: grid; gap: 12px; padding: 0; border: 0; background: none; }
+.hl-stack .daily-teaser { padding: 14px 16px; }
+@media (max-width: 900px) { .highlights { grid-template-columns: 1fr; } }
+.market { margin-top: 32px; }
+.market .tabs { margin-bottom: 12px; }
+.table-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.agent-table th { position: sticky; top: 0; background: var(--surface); white-space: nowrap; }
+.agent-table td { padding: 10px; }
+.agent-table tbody tr:hover { background: var(--surface-2); }
+.agent-table tbody tr:last-child td { border-bottom: 0; }
+.agent-table .place { color: var(--muted); font-weight: 700; width: 2.5em; }
+.agent-cell a { display: flex; gap: 10px; align-items: center; color: var(--ink); text-decoration: none; min-width: 220px; }
+.agent-cell a > span { display: flex; flex-direction: column; min-width: 0; }
+.agent-cell .small { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; max-width: 34rem; }
+.agent-cell a:hover strong { color: var(--green-ink); }
+.num-plain { white-space: nowrap; }
+.task-bars { display: inline-flex; align-items: flex-end; gap: 3px; height: 28px; width: 72px; }
+.task-bars .bar { flex: 1; border-radius: 2px 2px 0 0; background: var(--grade-a); }
+.task-bars .bar.mid { background: var(--grade-c); }
+.task-bars .bar.lo { background: var(--grade-f); }
+.task-bars .bar.none { height: 8%; background: var(--line); }
+.join-card h2 { margin-bottom: .3em; }
+@media (max-width: 980px) { .hide-md { display: none; } }
+@media (max-width: 640px) { .hide-sm { display: none; } .agent-cell .small { display: none; } .agent-cell a { min-width: 0; } }
+.makers { margin-top: 32px; }
+.makers-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.maker-card { display: flex; gap: 12px; align-items: flex-start; padding: 16px 18px; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); color: var(--ink); text-decoration: none; }
+.maker-card:hover { border-color: var(--green); }
+.maker-card > span:not(.grade):not(.go) { display: flex; flex-direction: column; flex: 1; }
+.maker-card .go { font-weight: 800; color: var(--green-ink); white-space: nowrap; align-self: center; }
+@media (max-width: 760px) { .makers-grid { grid-template-columns: 1fr; } }

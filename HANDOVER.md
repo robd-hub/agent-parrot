@@ -1,26 +1,54 @@
-# Agent Parrot handover (20 Nov 2026)
+# Agent Parrot handover (21 Nov 2026)
 
-## Where things stand
-- Repo: robd-hub/agent-parrot. The whole first version of the site is on branch `claude/project-thread-7wk4eq`.
-  `main` is still empty, so no pull request exists yet. Next step: with Rob's OK, push a README-only starter
-  `main`, then open the PR from the branch. Never merge without Rob's OK.
-- Not deployed anywhere. Nothing bought. Domains chosen: agentparrot.ai and agentparrots.com (Rob buys them
-  himself on Cloudflare).
-- `npm test`: 14 tests, all passing.
-- Business plan (Claude Doc): https://claude.ai/artifact/Cgr4y3TzZiDA9FfHg3SAwE
-- Screenshots were saved in the old project's files (agent-parrot/ folder).
+Where the project stands, for whoever picks it up next (Claude Code, Antigravity or a person).
+Rules and commands are in `CLAUDE.md`. Update this file when something below changes.
+
+## Live now
+
+- Repo `robd-hub/agent-parrot`, default branch `main`. `npm test`: 25 tests, all passing.
+- Vercel project `agent-parrot` (team designimp-projects, Hobby plan), linked to the repo, deploys `main`
+  automatically: https://agent-parrot.vercel.app. Behind Vercel's login until a custom domain is added,
+  so the public can't see it yet.
+- Neon Postgres connected through Vercel. Set in Vercel by Rob so far: `SESSION_SECRET`, `DATABASE_URL`,
+  `ADMIN_PASSWORD`, `GRAPH_API_KEY`.
+- Daily crons: `/api/cron/directories` 05:00 UTC, `/api/cron/hallucination` 06:00 UTC.
+
+## Done (all merged with Rob's OK)
+
+| PR | What it did |
+| --- | --- |
+| #1 | First version of the site: directory, Pecking Order, agent pages, Daily Hallucination, Spot the Hallucination game, articles, The Squawk, sign-in, admin |
+| #2 | Lighter, CoinGecko-style home page with every agent ranked |
+| #3 | `/listed`: agents pulled in from the Official MCP Registry (no key) and ERC-8004 (via The Graph, needs `GRAPH_API_KEY`); "Also listed on" badges from `data/listed-on.json`; `/admin/directories` |
+| #4 | Faster directory copy on the live database (batched queries) |
+| #5 | Free grades feed: `/api/grades.json`, `/api/grades/<id>.json`, `/api/grades/lookup`, and the `/feed` page |
 
 ## Waiting on Rob
-1. OK to create a starter `main` so the PR can open, then review and merge.
-2. Buy the two domains (about $170 total).
-3. Free Vercel project (team designimp-projects, Hobby; move to Pro about $20 a month once it takes money)
-   plus a Neon database through Vercel's Storage tab.
-4. Sign-in apps (Google, GitHub, LinkedIn), the Claude key and the other settings in `.env.example`. Rob adds
-   the values in Vercel himself; never ask for them in chat.
-5. Agent Parrot LinkedIn page, 20 builders to invite, a launch date.
 
-## Notes
-- The daily satire run starts paused; resume it at `/admin/news` once `ANTHROPIC_API_KEY` is set.
-- Grades come from the agent-report-card repo via `npm run sync-grades` (both repos side by side).
-- Paid tests go to the Agent Report Card request page (`GRADER_URL`, default https://grader.designimp.com).
-- Hackathon entries, listings and registries keep the Agent Report Card name; the parrot names are this site only.
+1. Buy the domains agentparrot.ai and agentparrots.com (about $170, Rob buys them on Cloudflare himself).
+   Adding one to Vercel is what makes the site public.
+2. Sign-in apps (Google, GitHub, LinkedIn), the Claude API key and the email settings in `.env.example`.
+   Rob adds the values in Vercel himself. Never ask for them in chat and never put them in a file or PR.
+3. Move to Vercel Pro (about $20 a month) once the site takes money.
+4. Agent Parrot LinkedIn page, 20 builders to invite, a launch date.
+
+## Paused or parked
+
+- The Daily Hallucination run starts paused. Once `ANTHROPIC_API_KEY` is set, resume it at `/admin/news`.
+- Claim-your-listing growth plan (builders claim their `/listed` agent, get a badge, nudged to a paid test):
+  written up, not built. Parked until 21 Dec 2026. Never email addresses taken from GitHub or open automated
+  GitHub issues.
+- The SealKeeper-style badge idea was dropped.
+- Publishing the grades feed to outsiders only works once a custom domain is live.
+
+## Things to know
+
+- Grades come from the agent-report-card repo via `npm run sync-grades` (repos side by side). Never edit
+  `data/agents.json` by hand; grades must match Agent Report Card exactly.
+- Paid tests ($10, $5 retest) send people to `GRADER_URL` (default https://grader.designimp.com).
+- Hackathons, listings and registries keep the "Agent Report Card" name. Parrot names are this site only.
+- Rob's own agents on the site: Cheap First (grade A, 98, https://cheap-first.vercel.app/) and the Agent
+  Report Card grader. Where they are registered is kept in `data/listed-on.json`.
+- No public listing API was found for OpenServ, NEAR AI Market, Concordium or mcptry. x402 Bazaar is a
+  possible third directory source.
+- Business plan: https://claude.ai/artifact/Cgr4y3TzZiDA9FfHg3SAwE

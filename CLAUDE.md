@@ -1,6 +1,7 @@
 # CLAUDE.md
 
-Guidance for Claude Code working in this repo.
+Guidance for any AI coding agent working in this repo (Claude Code, Google Antigravity or another).
+Read this file and `HANDOVER.md` before starting: this one is the rules, `HANDOVER.md` is where things stand.
 
 ## What this is
 
@@ -19,6 +20,28 @@ secret into chat; env values never go in the repo, a PR or chat.
 Node 24, ES modules, Express 5, HTML from template strings in `src/*views.js`, no framework or build step.
 Postgres via `pg` on Vercel (Neon), PGlite locally and in tests (`./.data/pg`). Vercel Cron calls
 `/api/cron/hallucination` at 06:00 UTC and `/api/cron/directories` at 05:00 UTC. Claude API writes The Daily Hallucination (`src/hallucination.js`).
+
+## Commands
+
+```bash
+npm install         # once
+npm run dev         # http://localhost:3000, reloads on save, reads .env if present
+npm test            # node --test, every file in test/ (25 tests, all should pass)
+npm run sync-grades # copy grades from ../agent-report-card/data into data/ (both repos side by side)
+npm start           # what Vercel runs
+```
+
+- Copy `.env.example` to `.env` for local runs. Set `DEV_FAKE_LOGIN=1` to sign in without any keys.
+- No database install needed locally: PGlite writes to `./.data/pg` (git-ignored). Tests use a fresh one.
+- Missing keys switch features off quietly (sign-in buttons hide, the satire run stays idle), so the site runs with none.
+
+## Deploying
+
+- Vercel project `agent-parrot` on team designimp-projects, production branch `main`. Every merge to `main`
+  deploys to https://agent-parrot.vercel.app on its own; every PR gets a preview link.
+- That address is behind Vercel's login (team default) until a custom domain is added, so only team members see it.
+- Neon Postgres is connected through Vercel (`DATABASE_URL`). Env values are set in Vercel by Rob, never in files.
+- Crons are in `vercel.json` and are protected by `CRON_SECRET`.
 
 ## File map
 
@@ -50,7 +73,10 @@ Postgres via `pg` on Vercel (Neon), PGlite locally and in tests (`./.data/pg`). 
 - Escape everything in HTML with `esc()`. Forms that change things are POSTs and same-origin checked.
 - Add or update a test in `test/` for each change; keep `npm test` green.
 - Grades shown must match Agent Report Card exactly; never edit `data/agents.json` by hand.
-- Branches `claude/<something>`, a PR for every change, never push to `main` directly.
+- Branches `claude/<something>` (or `antigravity/<something>` from Antigravity), a PR for every change,
+  never push to `main` directly. Rob merges; never merge without his OK.
+- Pull `main` before starting: Claude Code and Antigravity may both be working on the repo.
+- Only match directory listings to tested agents by registry id or web address, never by name.
 
 ## Brand rules
 

@@ -199,11 +199,14 @@ export function createRoutes({
 
   // ----- Signing in -----
 
-  app.get('/signin', async (req, res) => {
-    const member = await memberOf(req);
-    if (member) return res.redirect(member.consent_at ? '/me' : '/join');
-    res.send(views.signInPage({ providers: signInOptions(), emailLogin: Boolean(sendEmail) }));
-  });
+  // Signing in and signing up are the same flow (a new person gets an account); only the words differ.
+  for (const [path, mode] of [['/signin', 'signin'], ['/signup', 'signup']]) {
+    app.get(path, async (req, res) => {
+      const member = await memberOf(req);
+      if (member) return res.redirect(member.consent_at ? '/me' : '/join');
+      res.send(views.signInPage({ providers: signInOptions(), emailLogin: Boolean(sendEmail), mode }));
+    });
+  }
 
   const afterLogin = async (res, uid) => {
     writeSession(res, { uid }, config.sessionSecret, secure);
@@ -408,7 +411,7 @@ export function createRoutes({
 
   app.get('/robots.txt', (req, res) => {
     res.type('text/plain').send(['User-agent: *',
-      ...['/admin', '/auth', '/api', '/join', '/me', '/signin', '/logout', '/remove'].map((p) => `Disallow: ${p}`),
+      ...['/admin', '/auth', '/api', '/join', '/me', '/signin', '/signup', '/logout', '/remove'].map((p) => `Disallow: ${p}`),
       '', `Sitemap: ${config.baseUrl}/sitemap.xml`, ''].join('\n'));
   });
 

@@ -53,22 +53,38 @@ test('public pages load', async (t) => {
   const s = await start();
   t.after(s.close);
   for (const p of ['/', '/agents', '/agents/coder', '/pecking-order', '/pecking-order?category=writing', '/news', '/game', '/articles',
-    '/articles/how-the-polly-test-works', '/get-polly-tested', '/signin', '/privacy', '/squawk', '/sitemap.xml', '/robots.txt']) {
+    '/articles/how-the-polly-test-works', '/get-polly-tested', '/signin', '/signup', '/privacy', '/squawk', '/sitemap.xml', '/robots.txt']) {
     assert.equal((await s.req(p)).status, 200, p);
   }
   assert.equal((await s.req('/agents/nope')).status, 404);
   assert.equal((await s.req('/articles/nope')).status, 404);
 });
 
-test('the site is always light, with no dark mode', async (t) => {
+test('light and dark mode, with a toggle in the top bar', async (t) => {
   const { req, close } = await start();
   t.after(close);
   const css = await req('/style.css');
-  assert.equal(css.status, 200);
-  assert.ok(!css.text.includes('prefers-color-scheme: dark'));
-  assert.match(css.text, /color-scheme: light/);
+  assert.match(css.text, /:root\[data-theme="dark"\]/);
+  assert.match(css.text, /color-scheme: dark/);
+  assert.equal((await req('/theme.js')).status, 200);
   const home = await req('/');
-  assert.ok(!home.text.includes('prefers-color-scheme: dark'));
+  assert.match(home.text, /data-theme-toggle/);
+  assert.match(home.text, /localStorage\.getItem\('theme'\)/);
+});
+
+test('signed out, the top bar has Sign in and Sign up; each page links to the other', async (t) => {
+  const { req, close } = await start();
+  t.after(close);
+  const home = await req('/');
+  assert.match(home.text, /href="\/signin"[^>]*>Sign in</);
+  assert.match(home.text, /href="\/signup"[^>]*>Sign up</);
+  const signup = await req('/signup');
+  assert.equal(signup.status, 200);
+  assert.match(signup.text, /<h1>Join the flock<\/h1>/);
+  assert.match(signup.text, /href="\/signin">Sign in</);
+  const signin = await req('/signin');
+  assert.match(signin.text, /<h1>Sign in to Agent Parrot<\/h1>/);
+  assert.match(signin.text, /href="\/signup">Sign up free</);
 });
 
 test('the home page leads with every agent in a ranked table, filterable by category', async (t) => {

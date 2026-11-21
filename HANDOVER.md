@@ -5,7 +5,7 @@ Rules and commands are in `CLAUDE.md`. Update this file when something below cha
 
 ## Live now
 
-- Repo `robd-hub/agent-parrot`, default branch `main`. `npm test`: 25 tests, all passing.
+- Repo `robd-hub/agent-parrot`, default branch `main`. `npm test`: 26 tests, all passing.
 - Vercel project `agent-parrot` (team designimp-projects, Hobby plan), linked to the repo, deploys `main`
   automatically: https://agent-parrot.vercel.app. Behind Vercel's login until a custom domain is added,
   so the public can't see it yet.

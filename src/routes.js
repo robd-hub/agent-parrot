@@ -13,6 +13,9 @@ import { cachedHeadlines } from './news.js';
 import { claudeWriter, runDaily, regenerateStory, today } from './hallucination.js';
 import { emailSender } from './email.js';
 import { squawkRoutes } from './squawk.js';
+import { directoryRoutes } from './directory-routes.js';
+import { listedOn } from './directories.js';
+import { listedOnBlock } from './directory-views.js';
 
 // A complete app around the routes, used by tests.
 export function createApp(options) {
@@ -32,6 +35,7 @@ export function createRoutes({
   writeStories = claudeWriter({ apiKey: config.anthropicApiKey }),
   sendEmail = emailSender({ brevoKey: config.brevoApiKey, resendKey: config.resendApiKey, from: config.emailFrom, log: config.logEmails }),
   now = () => new Date(),
+  fetchFn = fetch,
 }) {
   const app = express.Router();
   const secure = config.baseUrl.startsWith('https://');
@@ -126,12 +130,13 @@ export function createRoutes({
     res.redirect(303, '/agents?thanks=1#suggest');
   });
 
-  app.get('/agents/:id', (req, res) => {
+  app.get('/agents/:id', async (req, res) => {
     const agent = agentById(req.params.id);
     if (!agent) return res.status(404).send(views.pageNotFound());
     const order = peckingOrder();
+    const listed = listedOnBlock(listedOn(agent, await db.listed.forTested(agent.id)));
     res.set('Cache-Control', 'public, s-maxage=600, stale-while-revalidate=3600');
-    res.send(views.agentPage({ agent, place: order.find((a) => a.id === agent.id).place, total: order.length }));
+    res.send(views.agentPage({ agent, place: order.find((a) => a.id === agent.id).place, total: order.length, listed }));
   });
 
   app.get('/pecking-order', (req, res) => {
@@ -322,6 +327,7 @@ export function createRoutes({
   };
 
   app.use(squawkRoutes({ db, config, adminOnly, sendEmail, now }));
+  app.use(directoryRoutes({ db, config, adminOnly, fetchFn }));
 
   app.get('/admin', adminOnly, async (req, res) => {
     res.set('Cache-Control', 'private, no-store');
@@ -404,7 +410,7 @@ export function createRoutes({
 
   app.get('/sitemap.xml', async (req, res) => {
     const xmlEsc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const urls = ['/', '/agents', '/pecking-order', '/news', '/game', '/articles', '/get-polly-tested', '/squawk', '/privacy'].map((p) => ({ loc: p }));
+    const urls = ['/', '/agents', '/listed', '/pecking-order', '/news', '/game', '/articles', '/get-polly-tested', '/squawk', '/privacy'].map((p) => ({ loc: p }));
     for (const a of allAgents()) urls.push({ loc: `/agents/${a.id}`, lastmod: a.gradedAt.slice(0, 10) });
     for (const x of ARTICLES) urls.push({ loc: `/articles/${x.slug}`, lastmod: x.date });
     for (const s of (await db.stories.recent(60)).filter((s) => !s.hidden)) urls.push({ loc: `/news/${Number(s.id)}`, lastmod: s.day });

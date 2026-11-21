@@ -18,7 +18,7 @@ secret into chat; env values never go in the repo, a PR or chat.
 
 Node 24, ES modules, Express 5, HTML from template strings in `src/*views.js`, no framework or build step.
 Postgres via `pg` on Vercel (Neon), PGlite locally and in tests (`./.data/pg`). Vercel Cron calls
-`/api/cron/hallucination` at 06:00 UTC. Claude API writes The Daily Hallucination (`src/hallucination.js`).
+`/api/cron/hallucination` at 06:00 UTC and `/api/cron/directories` at 05:00 UTC. Claude API writes The Daily Hallucination (`src/hallucination.js`).
 
 ## File map
 
@@ -36,6 +36,9 @@ Postgres via `pg` on Vercel (Neon), PGlite locally and in tests (`./.data/pg`). 
 | `src/squawk.js` | The Squawk weekly email |
 | `src/oauth.js`, `src/linkedin.js` | Google, GitHub and LinkedIn sign-in |
 | `src/session.js`, `src/email.js`, `src/news.js` | Cookies, email sending, RSS feeds |
+| `src/directories.js` | Pulls agents in from the Official MCP Registry and ERC-8004 (daily cron `/api/cron/directories`), "Listed on" badges |
+| `src/directory-routes.js`, `src/directory-views.js` | `/listed` (agents not Polly Tested yet) and `/admin/directories` |
+| `data/listed-on.json` | Hand-kept: where our own tested agents are registered, and entries never shown as untested |
 | `scripts/sync-grades.mjs` | Copies grades from the Agent Report Card repo into `data/` |
 | `public/` | `style.css`, `parrot.svg` (Polly, the signature parrot), `game.js`, icons |
 

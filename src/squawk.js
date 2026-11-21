@@ -99,7 +99,7 @@ function archivePage({ issues, member }) {
       <p class="eyebrow">The weekly email</p>
       <h1>The Squawk</h1>
       <p class="muted">The week's best Hallucinations, the Pecking Order and new grades, once a week. Every issue is kept here.
-        ${member?.consent_at ? 'Switch it on from <a href="/me">your perch</a>.' : '<a href="/signin">Join</a> (free) to get it in your inbox.'}</p>
+        ${member?.consent_at ? 'Switch it on from <a href="/me">your perch</a>.' : '<a href="/signup">Join</a> (free) to get it in your inbox.'}</p>
       ${list ? `<ul class="issue-list">${list}</ul>` : '<p>The first issue is on its way.</p>'}
     </section>`, { description: 'The Squawk, the weekly Agent Parrot email: the best satire, new grades and the Pecking Order.' });
 }

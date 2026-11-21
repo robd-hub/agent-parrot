@@ -42,6 +42,13 @@ const NAV = [
   ['/agents', 'Directory'], ['/pecking-order', 'Pecking Order'], ['/news', 'News'], ['/game', 'Game'], ['/articles', 'Articles'], ['/get-polly-tested', 'Get tested'],
 ];
 
+// Runs before the page paints so dark mode never flashes white: a saved choice wins, else the device setting.
+const THEME_BOOT = "(function(){var t;try{t=localStorage.getItem('theme')}catch(e){}if(t!=='light'&&t!=='dark')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;})();";
+const THEME_TOGGLE = `<button type="button" class="theme-toggle" data-theme-toggle aria-label="Switch between light and dark mode" title="Light or dark mode">
+          <svg class="icon-moon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M21 14.5A9 9 0 0 1 9.5 3a9 9 0 1 0 11.5 11.5z"/></svg>
+          <svg class="icon-sun" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="4.5" fill="currentColor"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></g></svg>
+        </button>`;
+
 export function layout(title, body, { wide = false, description = DEFAULT_DESCRIPTION, ogType = 'website', ogImage, fullTitle = false } = {}) {
   const ctx = pageContext.getStore();
   const path = ctx?.path ?? '';
@@ -59,15 +66,21 @@ export function layout(title, body, { wide = false, description = DEFAULT_DESCRI
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
   <meta name="theme-color" content="#ffffff">
+  <script>${THEME_BOOT}</script>
   <link rel="stylesheet" href="/style.css">
+  <script src="/theme.js" defer></script>
 </head>
 <body>
   <header class="topbar">
     <div class="topbar-inner">
       <a href="/" class="brand"><img src="/parrot.svg" class="mark" width="40" height="40" alt=""><span class="logo">Agent<b>Parrot</b></span></a>
-      <nav aria-label="Main">${nav}${ctx?.signedIn
-        ? '<a href="/me" class="nav-signin">My perch</a>'
-        : '<a href="/signin" class="nav-signin">Join</a>'}</nav>
+      <nav aria-label="Main">${nav}</nav>
+      <div class="topbar-actions">
+        ${THEME_TOGGLE}
+        ${ctx?.signedIn
+          ? '<a href="/me" class="btn small">My perch</a>'
+          : '<a href="/signin" class="btn small ghost nav-login">Sign in</a><a href="/signup" class="btn small nav-signup">Sign up</a>'}
+      </div>
     </div>
   </header>
   <main class="wrap${wide ? ' wide' : ''}">${body}</main>
@@ -285,7 +298,7 @@ export function directoryPage({ agents, listings, category, notice, error, signe
         <div class="grid2"><label>What it does<input name="description" maxlength="200"></label>
           <label>Category<select name="category">${cats}</select></label></div>
         <button type="submit">Suggest it</button>
-      </form>` : '<p><a href="/signin">Join</a> (free) to suggest agents for the directory.</p>'}
+      </form>` : '<p><a href="/signup">Join</a> (free) to suggest agents for the directory.</p>'}
     </section>`, { description: 'AI agents, tested. Every agent in the Agent Parrot directory has a grade from real tasks and two independent judges.' });
 }
 
@@ -430,7 +443,7 @@ export function gamePage({ rounds, gameNo, played, streak, signedIn, stats }) {
       <h1>Spot the Hallucination</h1>
       <p class="lead">Each round is one question answered twice. One answer is making it up. Pick it. Three rounds, new ones every day.</p>
       ${signedIn ? `<p class="muted small">${streak ? `Your streak: <b>${Number(streak)} day${streak === 1 ? '' : 's'}</b>.` : 'Play every day to build a streak.'}${stats.players ? ` ${Number(stats.players)} member${stats.players === 1 ? ' has' : 's have'} played today.` : ''}</p>`
-        : '<p class="muted small"><a href="/signin">Join</a> to keep a streak.</p>'}
+        : '<p class="muted small"><a href="/signup">Join</a> to keep a streak.</p>'}
     </section>
     <div id="game" class="game"><noscript><p class="error">The game needs JavaScript switched on.</p></noscript></div>
     <script type="application/json" id="game-data">${data}</script>
@@ -462,18 +475,25 @@ export function articlePage({ article, more }) {
 
 // ----- Joining and members -----
 
-export function signInPage({ providers, emailLogin, error }) {
-  return layout('Join the flock', `
+export function signInPage({ providers, emailLogin, error, mode = 'signin' }) {
+  const signup = mode === 'signup';
+  const title = signup ? 'Join the flock' : `Sign in to ${BRAND}`;
+  return layout(signup ? 'Sign up' : 'Sign in', `
     <section class="card narrow">
       <img src="/parrot.svg" width="64" height="64" alt="">
-      <h1>Join the flock</h1>
-      <p>Free. Keep a game streak, suggest agents, and get The Squawk, our weekly email. Already a member? Same buttons.</p>
+      <h1>${title}</h1>
+      <p>${signup
+        ? 'Free. Keep a game streak, suggest agents, and get The Squawk, our weekly email.'
+        : 'Welcome back. Pick the way you joined.'}</p>
       ${error ? `<p class="error">${esc(error)}</p>` : ''}
       ${providers.length ? signInButtons(providers) : ''}
-      ${emailLogin ? emailLoginForm({ label: providers.length ? 'Or get a sign-in link by email' : 'Get a sign-in link by email' }) : ''}
+      ${emailLogin ? emailLoginForm({ label: providers.length ? `Or get a ${signup ? 'sign-up' : 'sign-in'} link by email` : `Get a ${signup ? 'sign-up' : 'sign-in'} link by email` }) : ''}
       ${!providers.length && !emailLogin ? '<p class="error">Sign-in is not set up yet.</p>' : ''}
+      <p class="switch-mode">${signup
+        ? 'Already a member? <a href="/signin">Sign in</a>'
+        : `New to ${BRAND}? <a href="/signup">Sign up free</a>`}</p>
       <p class="fine">We only receive your name, email and photo. We never post for you, and you can remove yourself at any time. <a href="/privacy">Privacy</a></p>
-    </section>`, { description: 'Join Agent Parrot, the AI agent community where every listed agent is tested.' });
+    </section>`, { description: signup ? 'Join Agent Parrot, the AI agent community where every listed agent is tested.' : 'Sign in to Agent Parrot.' });
 }
 
 export const LINK_MINUTES = 30;

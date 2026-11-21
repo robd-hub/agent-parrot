@@ -1,4 +1,4 @@
-/* Agent Parrot. Colours, corners and shadows are variables here. The site is always light. */
+/* Agent Parrot. Colours, corners and shadows are variables here. Dark mode swaps the colours below. */
 :root {
   --bg: #ffffff;
   --surface: #ffffff;
@@ -24,8 +24,23 @@
   --head: 'Bricolage Grotesque', 'Plus Jakarta Sans', system-ui, sans-serif;
   --body: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --mono: 'JetBrains Mono', ui-monospace, monospace;
+  --green-hover: #087443;
   color-scheme: light;
 }
+:root[data-theme="dark"] {
+  --bg: #0b1210;
+  --surface: #111b17;
+  --surface-2: #19261f;
+  --ink: #e7efea;
+  --muted: #9bada3;
+  --line: #24352c;
+  --green-ink: #4fd18f;
+  --green-deep: #0f3b2a;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .3);
+  --hero-glow: radial-gradient(600px 300px at 90% 0%, rgba(18, 183, 106, .18), transparent 70%), radial-gradient(400px 240px at 0% 100%, rgba(255, 197, 49, .10), transparent 70%);
+  color-scheme: dark;
+}
+:root[data-theme="dark"] .btn-github { border-color: #3d4650; }
 
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
@@ -55,10 +70,16 @@ code { font-family: var(--mono); font-size: .9em; }
 .topbar nav::-webkit-scrollbar { display: none; }
 .topbar nav a { color: var(--ink); text-decoration: none; font-weight: 600; font-size: .92rem; padding: 8px 12px; border-radius: 999px; white-space: nowrap; }
 .topbar nav a:hover, .topbar nav a[aria-current="page"] { background: var(--surface-2); }
-.topbar nav .nav-signin { background: var(--green); color: #fff; }
-.topbar nav .nav-signin:hover { background: var(--green-ink); }
+.topbar-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.topbar-actions .btn { padding: 7px 16px; font-size: .9rem; }
+.theme-toggle { width: 38px; height: 38px; padding: 0; border-radius: 50%; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); }
+.theme-toggle:hover { background: var(--surface-2); border-color: var(--green); }
+.theme-toggle .icon-sun, :root[data-theme="dark"] .theme-toggle .icon-moon { display: none; }
+:root[data-theme="dark"] .theme-toggle .icon-sun { display: block; }
+.switch-mode { margin-top: 16px; font-weight: 600; }
 @media (max-width: 860px) {
   .topbar-inner { flex-wrap: wrap; gap: 6px 12px; }
+  .topbar-actions { margin-left: auto; }
   .topbar nav { order: 3; width: 100%; margin: 0; flex-wrap: wrap; overflow: visible; gap: 2px; }
   .topbar nav a { padding: 6px 10px; font-size: .88rem; }
 }
@@ -79,7 +100,7 @@ code { font-family: var(--mono); font-size: .9em; }
 
 /* ----- Buttons and forms ----- */
 .btn, button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font: 700 .95rem var(--body); padding: 11px 20px; border-radius: 999px; border: 2px solid var(--green); background: var(--green); color: #fff; text-decoration: none; cursor: pointer; }
-.btn:hover, button:hover { background: var(--green-ink); border-color: var(--green-ink); }
+.btn:hover, button:hover { background: var(--green-hover); border-color: var(--green-hover); }
 .btn.ghost, button.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
 .btn.ghost:hover, button.ghost:hover { border-color: var(--green); background: var(--surface-2); }
 button.danger { background: transparent; border-color: var(--red); color: var(--red); }
@@ -107,6 +128,14 @@ legend { font-weight: 700; padding: 0 6px; }
 .email-row { display: flex; gap: 8px; }
 .email-row button { white-space: nowrap; padding: 10px 14px; }
 @media (max-width: 420px) { .email-row { flex-direction: column; } }
+@media (max-width: 480px) {
+  .brand { gap: 6px; }
+  .brand .mark { width: 30px; height: 30px; }
+  .logo { font-size: 1.1rem; }
+  .topbar-actions { gap: 6px; }
+  .topbar-actions .btn { padding: 6px 11px; font-size: .82rem; }
+  .theme-toggle { width: 32px; height: 32px; }
+}
 
 /* ----- Home ----- */
 .hero { display: grid; grid-template-columns: 1.5fr 1fr; gap: 24px; align-items: center; background: var(--surface) var(--hero-glow); border: 1px solid var(--line); border-radius: 28px; padding: 40px; box-shadow: var(--shadow); }

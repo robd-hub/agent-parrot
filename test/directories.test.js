@@ -147,3 +147,13 @@ test('the sync is admin-only or needs the cron secret', async (t) => {
   const run = await s.req('/admin/directories/sync', { method: 'POST', headers: admin });
   assert.match(run.text, /Up to date/);
 });
+
+test('an entry deleted from a registry is taken out here too', async () => {
+  const db = await connect();
+  const row = (status) => prepare([fromMcp(mcp('com.example/gone', { title: 'Gone' }, { status }))]);
+  await db.listed.save(row('active'));
+  assert.equal((await db.listed.search({ query: 'Gone' })).total, 1);
+  assert.deepEqual(await db.listed.save(row('deleted')), { saved: 0, removed: 1 });
+  assert.equal((await db.listed.search({ query: 'Gone' })).total, 0);
+  await db.close();
+});

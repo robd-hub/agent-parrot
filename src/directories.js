@@ -120,9 +120,12 @@ export const prepare = (rows) => rows.map((r) => ({ ...r, keep: r.keep && !hidde
 // One sync run. Works through each source a page batch at a time and remembers where it stopped (in the
 // settings table), so a run that hits the time limit carries on next time. Once a source has been read to the
 // end, later runs only ask for what changed since then.
-export async function syncDirectories({ db, config, fetchFn = fetch, budgetMs = 40000, now = () => new Date() }) {
+// Vercel lets a function run for up to 300 seconds; a run stops starting new batches after budgetMs. The MCP
+// Registry gets the first 60% when ERC-8004 is on too, so both make progress on every run.
+export async function syncDirectories({ db, config, fetchFn = fetch, budgetMs = 200000, now = () => new Date() }) {
   const started = Date.now();
   const timeLeft = () => Date.now() - started < budgetMs;
+  const mcpTimeLeft = () => Date.now() - started < (config.graphApiKey ? budgetMs * 0.6 : budgetMs);
   const report = [];
 
   // MCP Registry
@@ -133,15 +136,19 @@ export async function syncDirectories({ db, config, fetchFn = fetch, budgetMs = 
     let saved = 0;
     let removed = 0;
     try {
+      // The next batch is fetched while this one is being saved.
+      let next = fetchMcpPages({ fetchFn, cursor, since, pages: 10 });
       do {
-        const page = await fetchMcpPages({ fetchFn, cursor, since, pages: 10 });
+        const page = await next;
+        next = page.cursor && mcpTimeLeft() ? fetchMcpPages({ fetchFn, cursor: page.cursor, since, pages: 10 }) : null;
+        next?.catch(() => {}); // a failure is picked up when it is awaited
         const res = await db.listed.save(prepare(page.rows));
         saved += res.saved;
         removed += res.removed;
         cursor = page.cursor;
         // Saved after every batch, so a run that gets cut off still carries on from here next time.
         if (cursor) await db.settings.set('sync_mcp', JSON.stringify({ cursor, since, runStart }));
-      } while (cursor && timeLeft());
+      } while (cursor && next);
       const done = !cursor;
       await db.settings.set('sync_mcp', JSON.stringify(done ? { since: runStart } : { cursor, since, runStart }));
       if (done) await db.settings.set('sync_mcp_at', now().toISOString());

@@ -42,6 +42,18 @@ async function getJson(fetchFn, url, init) {
   return res.json();
 }
 
+// Who published an MCP server. The registry checks the name's first part before it accepts a server: io.github.<login>
+// needs that GitHub account, and a reversed domain (com.acme) needs control of acme.com. So this is a checked maker.
+export function mcpMaker(serverName) {
+  const ns = String(serverName ?? '').split('/')[0];
+  const gh = /^io\.github\.([A-Za-z0-9-]{1,39})$/.exec(ns);
+  if (gh) return { maker_key: `github:${gh[1].toLowerCase()}`, maker_name: gh[1], maker_url: `https://github.com/${gh[1]}` };
+  const parts = ns.split('.').filter(Boolean);
+  if (parts.length < 2 || !parts.every((p) => /^[a-z0-9-]{1,63}$/i.test(p))) return { maker_key: null, maker_name: null, maker_url: null };
+  const domain = parts.reverse().join('.').toLowerCase();
+  return { maker_key: `web:${domain}`, maker_name: domain, maker_url: `https://${domain}` };
+}
+
 // One registry entry in the shape stored in the listed_agents table.
 export function fromMcp(entry) {
   const s = entry?.server;
@@ -49,21 +61,34 @@ export function fromMcp(entry) {
   // Older versions are skipped: only the newest version of each server says what it is now.
   if (!s?.name || meta.isLatest === false) return null;
   const endpoint = httpUrl(s.remotes?.find((r) => httpUrl(r?.url))?.url);
+  const repo = httpUrl(s.repository?.url);
   return {
     source: 'mcp', source_id: clip(s.name, 200),
     name: clip(s.title || s.name.split('/').pop(), 120),
     description: clip(s.description, 300),
-    url: httpUrl(s.websiteUrl) || httpUrl(s.repository?.url) || null,
+    url: httpUrl(s.websiteUrl) || repo || null,
     endpoint, image: httpUrl(s.icons?.[0]?.src),
     // Kept only while it is active and can be called over the internet; otherwise taken out.
     keep: Boolean(endpoint) && (meta.status ?? 'active') === 'active',
     updated_at: meta.updatedAt || meta.publishedAt || null,
+    first_published_at: meta.publishedAt || null,
+    ...mcpMaker(s.name),
+    details: {
+      version: clip(s.version, 40) || null,
+      website: httpUrl(s.websiteUrl), repo,
+      transports: [...new Set((s.remotes ?? []).map((r) => clip(r?.type, 40)).filter(Boolean))],
+      packages: (s.packages ?? []).slice(0, 6).map((p) => ({ type: clip(p?.registryType, 20), id: clip(p?.identifier, 120), version: clip(p?.version, 40) || null })).filter((p) => p.type && p.id),
+      // A header that takes a secret means it needs a key or payment to use; we only note that, never the value.
+      needsKey: (s.remotes ?? []).some((r) => (r?.headers ?? []).some((h) => h?.isSecret)),
+    },
   };
 }
 
 // Reads one batch of pages from the MCP Registry, starting at `cursor`. Returns the entries and the next cursor.
 export async function fetchMcpPages({ fetchFn = fetch, cursor = null, since = null, pages = 20 } = {}) {
   const out = [];
+  const firstSeen = new Map();
+  const withFirst = () => out.map((r) => ({ ...r, first_published_at: firstSeen.get(r.source_id) ?? r.first_published_at }));
   let next = cursor;
   for (let i = 0; i < pages; i++) {
     const url = new URL(MCP_API);
@@ -74,19 +99,29 @@ export async function fetchMcpPages({ fetchFn = fetch, cursor = null, since = nu
     for (const e of data.servers ?? []) {
       const row = fromMcp(e);
       if (row) out.push(row);
+      // An older version still tells us when the server first appeared.
+      const at = e?._meta?.[MCP_META]?.publishedAt;
+      if (at && e?.server?.name) firstSeen.set(e.server.name, firstSeen.has(e.server.name) && firstSeen.get(e.server.name) < at ? firstSeen.get(e.server.name) : at);
     }
     next = data.metadata?.nextCursor || null;
-    if (!next || !(data.servers ?? []).length) return { rows: out, cursor: null };
+    if (!next || !(data.servers ?? []).length) return { rows: withFirst(), cursor: null };
   }
-  return { rows: out, cursor: next };
+  return { rows: withFirst(), cursor: next };
 }
 
-const AGENT0_QUERY = `query ($after: String!, $since: BigInt!) {
+// The fuller query asks for the owner, dates and the registration file's extra fields. If an index is on an older
+// version that lacks one of them, the basic query is used instead, so the copy keeps working.
+const agent0Query = (full) => `query ($after: String!, $since: BigInt!) {
   agents(first: 500, orderBy: id, orderDirection: asc, where: { id_gt: $after, updatedAt_gte: $since }) {
-    id agentId owner updatedAt totalFeedback
-    registrationFile { name description image active mcpEndpoint a2aEndpoint x402Support }
+    id agentId owner updatedAt totalFeedback${full ? ' createdAt agentURI' : ''}
+    registrationFile { name description image active mcpEndpoint a2aEndpoint x402Support${full ? ' mcpVersion a2aVersion ens did supportedTrusts a2aSkills mcpTools' : ''} }
   }
 }`;
+let agent0Full = true;
+
+export const EXPLORERS = { 1: 'https://etherscan.io', 8453: 'https://basescan.org', 56: 'https://bscscan.com', 137: 'https://polygonscan.com' };
+const list = (v, n = 12) => (Array.isArray(v) ? v.map((x) => clip(x, 80)).filter(Boolean).slice(0, n) : []);
+const ipfsHttp = (u) => (typeof u === 'string' && /^ipfs:\/\/[\w./-]+$/i.test(u) ? `https://ipfs.io/ipfs/${u.slice(7)}` : httpUrl(u));
 
 export function fromErc8004(a, chain) {
   const f = a?.registrationFile;
@@ -94,21 +129,41 @@ export function fromErc8004(a, chain) {
   // Skip empty or switched-off registrations: there's nothing to show or test.
   const endpoint = httpUrl(f?.mcpEndpoint) || httpUrl(f?.a2aEndpoint);
   const keep = Boolean(name) && f.active !== false && Boolean(endpoint || f?.description);
+  const owner = /^0x[0-9a-f]{40}$/i.test(a?.owner ?? '') ? a.owner.toLowerCase() : null;
+  const explorer = EXPLORERS[chain.id];
   return {
     source: 'erc8004', source_id: `${chain.id}:${a.agentId}`, name: name || `Agent ${a.agentId}`,
     description: clip(f?.description, 300), url: null, endpoint, image: httpUrl(f?.image),
     chain: chain.name, x402: Boolean(f?.x402Support), keep,
     updated_at: a.updatedAt ? new Date(Number(a.updatedAt) * 1000).toISOString() : null,
+    first_published_at: a.createdAt ? new Date(Number(a.createdAt) * 1000).toISOString() : null,
+    // The wallet that owns the registration. Anyone can make a wallet, so this says who controls it, not who they are.
+    maker_key: owner ? `wallet:${owner}` : null,
+    maker_name: owner ? `${owner.slice(0, 6)}…${owner.slice(-4)}` : null,
+    maker_url: owner && explorer ? `${explorer}/address/${owner}` : null,
+    details: {
+      owner, registration: ipfsHttp(a?.agentURI),
+      mcp: httpUrl(f?.mcpEndpoint) ? { endpoint: httpUrl(f.mcpEndpoint), version: clip(f?.mcpVersion, 20) || null } : null,
+      a2a: httpUrl(f?.a2aEndpoint) ? { endpoint: httpUrl(f.a2aEndpoint), version: clip(f?.a2aVersion, 20) || null } : null,
+      ens: clip(f?.ens, 100) || null, did: clip(f?.did, 200) || null,
+      trusts: list(f?.supportedTrusts), skills: list(f?.a2aSkills), tools: list(f?.mcpTools),
+      feedback: Number(a?.totalFeedback ?? 0) || 0,
+    },
   };
 }
 
 // Reads one batch of ERC-8004 agents on one chain, after the id `after`.
 export async function fetchErc8004Page({ fetchFn = fetch, apiKey, chain, after = '', since = 0 }) {
   const url = `https://gateway.thegraph.com/api/${encodeURIComponent(apiKey)}/subgraphs/id/${chain.subgraph}`;
-  const data = await getJson(fetchFn, url, {
+  const ask = (full) => getJson(fetchFn, url, {
     method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ query: AGENT0_QUERY, variables: { after, since: String(since) } }),
+    body: JSON.stringify({ query: agent0Query(full), variables: { after, since: String(since) } }),
   });
+  let data = await ask(agent0Full);
+  if (agent0Full && data.errors?.some((e) => /field|Cannot query/i.test(e.message ?? ''))) {
+    agent0Full = false;
+    data = await ask(false);
+  }
   if (data.errors?.length) throw new Error(`ERC-8004 index (${chain.name}): ${data.errors[0].message}`);
   const agents = data.data?.agents ?? [];
   return { rows: agents.map((a) => fromErc8004(a, chain)), after: agents.length === 500 ? agents.at(-1).id : null };

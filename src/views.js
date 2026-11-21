@@ -302,7 +302,7 @@ export function directoryPage({ agents, listings, category, notice, error, signe
     </section>`, { description: 'AI agents, tested. Every agent in the Agent Parrot directory has a grade from real tasks and two independent judges.' });
 }
 
-export function agentPage({ agent, place, total, listed = '' }) {
+export function agentPage({ agent, place, total, listed = '', details = '' }) {
   const tasks = agent.tasks.map((t) => `
       <article class="task">
         <div class="task-head"><span class="task-score score-${t.score === null ? 'none' : t.score >= 70 ? 'ok' : 'bad'}">${t.score === null ? '…' : Number(t.score)}</span>
@@ -333,6 +333,7 @@ export function agentPage({ agent, place, total, listed = '' }) {
         </div>
       </div>
     </section>
+    ${details}
     <section class="section">
       <h2>What Polly asked, and how it did</h2>
       ${tasks}

@@ -82,6 +82,13 @@ const SCHEMA = `
     PRIMARY KEY (source, source_id)
   );
   CREATE INDEX IF NOT EXISTS listed_agents_tested ON listed_agents (tested_id);
+  -- Who made it (a GitHub login, a domain or a wallet), when it first appeared, and the rest of what the source says.
+  ALTER TABLE listed_agents ADD COLUMN IF NOT EXISTS maker_key TEXT;
+  ALTER TABLE listed_agents ADD COLUMN IF NOT EXISTS maker_name TEXT;
+  ALTER TABLE listed_agents ADD COLUMN IF NOT EXISTS maker_url TEXT;
+  ALTER TABLE listed_agents ADD COLUMN IF NOT EXISTS first_published_at TIMESTAMPTZ;
+  ALTER TABLE listed_agents ADD COLUMN IF NOT EXISTS details JSONB;
+  CREATE INDEX IF NOT EXISTS listed_agents_maker ON listed_agents (maker_key);
   -- Spot the Hallucination results, one row per member per day, for streaks and the weekly email.
   CREATE TABLE IF NOT EXISTS game_results (
     day        TEXT NOT NULL,
@@ -274,18 +281,21 @@ export function openDb(client) {
     listed: {
       // Saves a batch from one sync: adds or updates the ones to keep, takes out the rest.
       async save(rows) {
-        const cols = ['source', 'source_id', 'name', 'description', 'url', 'endpoint', 'image', 'chain', 'x402', 'tested_id', 'updated_at'];
+        const cols = ['source', 'source_id', 'name', 'description', 'url', 'endpoint', 'image', 'chain', 'x402', 'tested_id', 'updated_at',
+          'maker_key', 'maker_name', 'maker_url', 'first_published_at', 'details'];
         // The same entry can appear twice in one batch (two versions); the last one wins.
         const latest = [...new Map(rows.map((r) => [`${r.source}|${r.source_id}`, r])).values()];
         const keep = latest.filter((r) => r.keep);
         for (let i = 0; i < keep.length; i += 500) {
           const params = [];
           const values = keep.slice(i, i + 500).map((r) => `(${cols.map((c) => {
-            params.push(c === 'x402' ? Boolean(r.x402) : c === 'description' ? r.description ?? '' : r[c] ?? null);
+            params.push(c === 'x402' ? Boolean(r.x402) : c === 'description' ? r.description ?? '' : c === 'details' ? (r.details ? JSON.stringify(r.details) : null) : r[c] ?? null);
             return `$${params.length}`;
           }).join(', ')})`);
           await q(`INSERT INTO listed_agents (${cols.join(', ')}) VALUES ${values.join(', ')}
-            ON CONFLICT (source, source_id) DO UPDATE SET ${cols.slice(2).map((c) => `${c} = excluded.${c}`).join(', ')}, synced_at = now()`, params);
+            ON CONFLICT (source, source_id) DO UPDATE SET ${cols.slice(2).map((c) => (c === 'first_published_at'
+              // The earliest date ever seen wins, so a new version doesn't make an old agent look new.
+              ? `${c} = LEAST(listed_agents.${c}, excluded.${c})` : `${c} = excluded.${c}`)).join(', ')}, synced_at = now()`, params);
         }
         // One query for all the ones to take out: most registry entries aren't hosted, so there can be hundreds.
         const drop = latest.filter((r) => !r.keep);
@@ -315,6 +325,15 @@ export function openDb(client) {
         return { rows, total: total.n };
       },
       forTested: (id) => q('SELECT * FROM listed_agents WHERE tested_id = $1 ORDER BY source, source_id', [id]),
+      get: (source, sourceId) => one('SELECT * FROM listed_agents WHERE source = $1 AND source_id = $2', [source, sourceId]),
+      // Everything one maker has listed, newest first, and the totals their reputation is worked out from.
+      byMaker: (key, limit = 100) => q('SELECT * FROM listed_agents WHERE maker_key = $1 ORDER BY updated_at DESC NULLS LAST, lower(name) LIMIT $2', [key, limit]),
+      makerStats: (key) => one(`SELECT count(*)::int AS agents, count(DISTINCT source)::int AS sources, min(first_published_at) AS since,
+          coalesce(sum((details->>'feedback')::int), 0)::int AS feedback, array_remove(array_agg(DISTINCT tested_id), NULL) AS tested
+        FROM listed_agents WHERE maker_key = $1`, [key]),
+      makerCounts: async (keys) => (keys.length
+        ? Object.fromEntries((await q('SELECT maker_key, count(*)::int AS n FROM listed_agents WHERE maker_key = ANY($1::text[]) GROUP BY maker_key', [keys])).map((r) => [r.maker_key, r.n]))
+        : {}),
       counts: () => q('SELECT source, count(*) FILTER (WHERE tested_id IS NULL)::int AS untested, count(*)::int AS total FROM listed_agents GROUP BY source ORDER BY source'),
     },
 

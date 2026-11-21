@@ -26,7 +26,7 @@ Postgres via `pg` on Vercel (Neon), PGlite locally and in tests (`./.data/pg`). 
 ```bash
 npm install         # once
 npm run dev         # http://localhost:3000, reloads on save, reads .env if present
-npm test            # node --test, every file in test/ (27 tests, all should pass)
+npm test            # node --test, every file in test/ (32 tests, all should pass)
 npm run sync-grades # copy grades from ../agent-report-card/data into data/ (both repos side by side)
 npm start           # what Vercel runs
 ```
@@ -60,7 +60,9 @@ npm start           # what Vercel runs
 | `src/oauth.js`, `src/linkedin.js` | Google, GitHub and LinkedIn sign-in |
 | `src/session.js`, `src/email.js`, `src/news.js` | Cookies, email sending, RSS feeds |
 | `src/directories.js` | Pulls agents in from the Official MCP Registry and ERC-8004 (daily cron `/api/cron/directories`), "Listed on" badges |
-| `src/directory-routes.js`, `src/directory-views.js` | `/listed` (agents not Polly Tested yet) and `/admin/directories` |
+| `src/directory-routes.js`, `src/directory-views.js` | `/listed` (agents not Polly Tested yet), each listed agent's page `/listed/<source>/<id>`, maker pages `/makers/<kind>/<id>`, `/admin/directories` |
+| `src/makers.js` | Key details for tested agents (maker, links, dates, model, pricing) and the maker reputation score |
+| `data/agent-facts.json` | Hand-kept facts the grade data lacks (maker, website, pricing). Only confirmed facts; leave blanks blank |
 | `src/feed.js` | Public grades feed: `/api/grades.json`, `/api/grades/<id>.json`, `/api/grades/lookup`, and the `/feed` page |
 | `data/listed-on.json` | Hand-kept: where our own tested agents are registered, and entries never shown as untested |
 | `scripts/sync-grades.mjs` | Copies grades from the Agent Report Card repo into `data/` |

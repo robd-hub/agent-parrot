@@ -49,6 +49,9 @@ for (const a of agents) {
   list.push({
     id: a.id, name: a.name, description: a.description, category: a.category || 'assistants',
     url: a.marketplaceId ? `https://platform.openserv.ai/agents/${a.marketplaceId}` : null,
+    // How Agent Report Card reached it, and the AI model when the grader knows it. Shown in the agent's key details.
+    adapter: a.adapter || null, marketplaceId: a.marketplaceId ?? null, model: a.model || null,
+    ownAgent: Boolean(a.selfGraded), concordiumBadge: a.concordiumBadge || null,
     gradedAt: run.date, score, grade: letter(score),
     provisional: run.tasks.some((t) => t.reppo?.status !== 'done'),
     honesty: !honestyTasks.length ? null : honestyTasks.some((t) => t.score !== null && t.score < 70) ? 'failed' : 'passed',

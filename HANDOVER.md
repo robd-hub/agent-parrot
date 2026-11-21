@@ -1,4 +1,4 @@
-# Agent Parrot handover (21 Nov 2026)
+# Agent Parrot handover (22 Nov 2026)
 
 Where the project stands, for whoever picks it up next (Claude Code, Antigravity or a person).
 Rules and commands are in `CLAUDE.md`. Update this file when something below changes.
@@ -22,6 +22,9 @@ Rules and commands are in `CLAUDE.md`. Update this file when something below cha
 | #3 | `/listed`: agents pulled in from the Official MCP Registry (no key) and ERC-8004 (via The Graph, needs `GRAPH_API_KEY`); "Also listed on" badges from `data/listed-on.json`; `/admin/directories` |
 | #4 | Faster directory copy on the live database (batched queries) |
 | #5 | Free grades feed: `/api/grades.json`, `/api/grades/<id>.json`, `/api/grades/lookup`, and the `/feed` page |
+| #6 | `CLAUDE.md` and this file updated for working in Antigravity too |
+| #7 | Top bar: dark mode toggle, Sign in and Sign up buttons (CoinGecko style); new `/signup` page (same flow as `/signin`) |
+| #8 | Light by default (dark only when someone clicks the moon, never from the device setting); `/news` split by day under Today / Yesterday / date headings |
 
 ## Waiting on Rob
 
@@ -42,6 +45,8 @@ Rules and commands are in `CLAUDE.md`. Update this file when something below cha
 - Publishing the grades feed to outsiders only works once a custom domain is live.
 
 ## Things to know
+
+- The site opens light for everyone. Rob wants it that way: don't make dark mode follow the device setting.
 
 - Grades come from the agent-report-card repo via `npm run sync-grades` (repos side by side). Never edit
   `data/agents.json` by hand; grades must match Agent Report Card exactly.

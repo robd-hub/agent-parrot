@@ -210,6 +210,8 @@ const host = (u) => {
   }
 };
 const ownFor = (id) => OWN.agents?.[id] ?? {};
+// The hand-kept record for one of our tested agents: its registry ids, web addresses and listings.
+export const ownListings = ownFor;
 
 // Does a synced listing fit a pattern from data/listed-on.json? "mcp:<server name>", or "erc8004:<chain id>:<agent id>"
 // where the chain can be * for any chain.

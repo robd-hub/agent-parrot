@@ -14,6 +14,7 @@ import { claudeWriter, runDaily, regenerateStory, today } from './hallucination.
 import { emailSender } from './email.js';
 import { squawkRoutes } from './squawk.js';
 import { directoryRoutes } from './directory-routes.js';
+import { feedRoutes } from './feed.js';
 import { listedOn } from './directories.js';
 import { listedOnBlock } from './directory-views.js';
 
@@ -330,6 +331,7 @@ export function createRoutes({
 
   app.use(squawkRoutes({ db, config, adminOnly, sendEmail, now }));
   app.use(directoryRoutes({ db, config, adminOnly, fetchFn }));
+  app.use(feedRoutes({ config }));
 
   app.get('/admin', adminOnly, async (req, res) => {
     res.set('Cache-Control', 'private, no-store');
@@ -412,7 +414,7 @@ export function createRoutes({
 
   app.get('/sitemap.xml', async (req, res) => {
     const xmlEsc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const urls = ['/', '/agents', '/listed', '/pecking-order', '/news', '/game', '/articles', '/get-polly-tested', '/squawk', '/privacy'].map((p) => ({ loc: p }));
+    const urls = ['/', '/agents', '/listed', '/pecking-order', '/news', '/game', '/articles', '/get-polly-tested', '/feed', '/squawk', '/privacy'].map((p) => ({ loc: p }));
     for (const a of allAgents()) urls.push({ loc: `/agents/${a.id}`, lastmod: a.gradedAt.slice(0, 10) });
     for (const x of ARTICLES) urls.push({ loc: `/articles/${x.slug}`, lastmod: x.date });
     for (const s of (await db.stories.recent(60)).filter((s) => !s.hidden)) urls.push({ loc: `/news/${Number(s.id)}`, lastmod: s.day });

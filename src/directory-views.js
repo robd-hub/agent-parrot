@@ -2,6 +2,7 @@
 import { esc, layout, dateLabel, gradeBadge } from './views.js';
 import { SOURCES, EXPLORERS } from './directories.js';
 import { MAKER_KINDS, makerPath } from './makers.js';
+import { securityFlags, cardFlags, toolPowers, POWERS } from './security.js';
 
 // A listed agent's own page: /listed/<source>/<id>. MCP ids have slashes, kept as path segments.
 export const listedPath = (r) => `/listed/${encodeURIComponent(r.source)}/${String(r.source_id).split('/').map(encodeURIComponent).join('/')}`;
@@ -42,7 +43,16 @@ export function toolsBlock(r) {
   const a2a = r.source === 'erc8004' && !r.details?.mcp;
   return `<section class="card section"><h2>What it can do: ${tools.length}${r.health?.toolsMore ? '+' : ''} ${a2a ? 'skills' : 'tools'}</h2>
     <p class="muted small">Read from the agent itself at its last health check.</p>
-    <ul class="tool-list">${tools.map((t) => `<li><code>${esc(t.name)}</code>${t.description ? ` <span class="muted">${esc(t.description)}</span>` : ''}</li>`).join('')}</ul></section>`;
+    <ul class="tool-list">${tools.map((t) => `<li><code>${esc(t.name)}</code>${toolPowers(t).map((p) => ` <span class="tag tag-mid">${esc(POWERS[p].label)}</span>`).join('')}${t.description ? ` <span class="muted">${esc(t.description)}</span>` : ''}</li>`).join('')}</ul></section>`;
+}
+
+// Security flags (src/security.js) for an agent with a public address.
+const FLAG_ICON = { good: '✓', info: 'i', warn: '!', bad: '✕' };
+export function securityBlock(r, { intro = '' } = {}) {
+  const flags = securityFlags(r);
+  return `<section class="card section"><h2>Security</h2>
+    ${intro}<ul class="flags">${flags.map((f) => `<li class="flag flag-${esc(f.level)}"><span class="flag-icon" aria-hidden="true">${FLAG_ICON[f.level]}</span> ${esc(f.text)}</li>`).join('')}</ul>
+    <p class="muted small">From the agent's address, its registry entry and the tools it listed at its last health check. Tool powers come from each tool's own safety notes where it gives them, otherwise from its name, so treat them as a guide, not a security audit.</p></section>`;
 }
 
 // The reputation box on a maker's page and, smaller, on agent pages.
@@ -76,7 +86,8 @@ export function testedDetailsBlock(d, { gradedAt, rep, rows = [] } = {}) {
     ${d.note ? `<p class="muted small">${esc(d.note)}</p>` : ''}
     ${rep ? reputationBlock(rep, { compact: true, path: makerPath(d.makerKey) }) : ''}
   </section>
-  ${checked ? toolsBlock(checked) : ''}`;
+  ${checked ? securityBlock(checked) + toolsBlock(checked)
+    : `<section class="card section"><h2>Security</h2><p class="muted">${d.connection?.startsWith('OpenServ') ? 'Reached through the OpenServ marketplace, which handles access and payment, so there is no public address of its own to check.' : 'No public address listed yet, so nothing to check.'}</p></section>`}`;
 }
 
 const PER_PAGE = 50;
@@ -94,7 +105,7 @@ function listedCard(r, makerCounts = {}) {
       <span class="agent-main"><strong><a href="${esc(link)}">${esc(r.name)}</a></strong>
         <span class="muted small">${r.maker_name ? `by ${makerPath(r.maker_key) ? `<a href="${esc(makerPath(r.maker_key))}">${esc(r.maker_name)}</a>` : esc(r.maker_name)}${others > 0 ? ` (+${others.toLocaleString('en-GB')} more)` : ''}` : r.source === 'mcp' ? esc(r.source_id) : `Agent #${esc(r.source_id.split(':')[1])}`} · not Polly Tested yet</span>
         ${r.description ? `<span class="agent-desc">${esc(r.description)}</span>` : ''}</span>
-      <span class="agent-tags">${healthTag(r)}${toolsOf(r)?.length ? `<span class="tag">${toolsOf(r).length}${r.health?.toolsMore ? '+' : ''} ${r.source === 'erc8004' && !r.details?.mcp ? 'skills' : 'tools'}</span>` : ''}${sourceTag(r)}${r.x402 ? '<span class="tag">x402</span>' : ''}
+      <span class="agent-tags">${healthTag(r)}${toolsOf(r)?.length ? `<span class="tag">${toolsOf(r).length}${r.health?.toolsMore ? '+' : ''} ${r.source === 'erc8004' && !r.details?.mcp ? 'skills' : 'tools'}</span>` : ''}${cardFlags(r).map((f) => `<span class="tag ${f.level === 'bad' ? 'tag-fail' : 'tag-mid'}">${esc(f.text)}</span>`).join('')}${sourceTag(r)}${r.x402 ? '<span class="tag">x402</span>' : ''}
         <a class="btn small" href="/get-polly-tested?agent=${encodeURIComponent(testWith)}">Get it tested</a></span>
     </div>`;
 }
@@ -231,6 +242,7 @@ export function listedAgentPage({ r, rep, more = [] }) {
         ...healthRows(r),
       ])}
     </section>
+    ${securityBlock(r)}
     ${toolsBlock(r)}
     ${rep ? `<section class="card section"><h2>Who made it</h2>${reputationBlock(rep)}
       ${more.length ? `<h3>More from ${esc(r.maker_name)}</h3><ul class="plain-list">${more.map((m) => `<li><a href="${esc(listedPath(m))}">${esc(m.name)}</a></li>`).join('')}</ul>` : ''}</section>` : ''}

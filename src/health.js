@@ -115,7 +115,12 @@ export async function checkMcp(endpoint, { fetchFn = fetch } = {}) {
     const list = await post({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} }, session).catch(() => null);
     const r = list && rpcResult(list.text, 2);
     if (Array.isArray(r?.result?.tools)) {
-      tools = r.result.tools.slice(0, 40).map((t) => ({ name: clip(t?.name, 60), description: clip(t?.description, 140) || null })).filter((t) => t.name);
+      tools = r.result.tools.slice(0, 40).map((t) => ({
+        name: clip(t?.name, 60), description: clip(t?.description, 140) || null,
+        // The tool's own safety notes (MCP annotations), when it gives them. Used for the security flags.
+        ...(typeof t?.annotations?.readOnlyHint === 'boolean' ? { readOnly: t.annotations.readOnlyHint } : {}),
+        ...(typeof t?.annotations?.destructiveHint === 'boolean' ? { destructive: t.annotations.destructiveHint } : {}),
+      })).filter((t) => t.name);
       if (r.result.nextCursor) tools.more = true;
     }
   }

@@ -42,8 +42,8 @@ const NAV = [
   ['/agents', 'Directory'], ['/pecking-order', 'Pecking Order'], ['/news', 'News'], ['/game', 'Game'], ['/articles', 'Articles'], ['/get-polly-tested', 'Get tested'],
 ];
 
-// Runs before the page paints so dark mode never flashes white: a saved choice wins, else the device setting.
-const THEME_BOOT = "(function(){var t;try{t=localStorage.getItem('theme')}catch(e){}if(t!=='light'&&t!=='dark')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;})();";
+// Runs before the page paints so dark mode never flashes white. The site is light unless someone picked dark on this device.
+const THEME_BOOT = "(function(){var t;try{t=localStorage.getItem('theme')}catch(e){}document.documentElement.dataset.theme=t==='dark'?'dark':'light';})();";
 const THEME_TOGGLE = `<button type="button" class="theme-toggle" data-theme-toggle aria-label="Switch between light and dark mode" title="Light or dark mode">
           <svg class="icon-moon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M21 14.5A9 9 0 0 1 9.5 3a9 9 0 1 0 11.5 11.5z"/></svg>
           <svg class="icon-sun" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="4.5" fill="currentColor"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></g></svg>
@@ -399,9 +399,9 @@ export function getTestedPage({ agent = '' }) {
 
 // ----- The Daily Hallucination -----
 
-function storyBlock(s, agent, { link = true } = {}) {
+function storyBlock(s, agent, { link = true, showDate = true } = {}) {
   return `<article class="story" id="story-${Number(s.id)}">
-      <p class="eyebrow">The Daily Hallucination · ${esc(dateLabel(s.day))}</p>
+      <p class="eyebrow">The Daily Hallucination${showDate ? ` · ${esc(dateLabel(s.day))}` : ''}</p>
       <h2>${link ? `<a href="/news/${Number(s.id)}">${esc(s.headline)}</a>` : esc(s.headline)}</h2>
       ${paras(s.body).map((p) => `<p>${esc(p)}</p>`).join('')}
       <p class="source">Satire, inspired by a real story: <a href="${esc(s.source_link)}" target="_blank" rel="noopener">${esc(s.source)}: ${esc(s.source_title)}</a></p>
@@ -409,12 +409,39 @@ function storyBlock(s, agent, { link = true } = {}) {
     </article>`;
 }
 
+// "Today", "Yesterday" or the date, for a YYYY-MM-DD day (UTC, like the daily run).
+export function dayHeading(day, now = new Date()) {
+  const today = now.toISOString().slice(0, 10);
+  const yesterday = new Date(now.getTime() - 864e5).toISOString().slice(0, 10);
+  return day === today ? 'Today' : day === yesterday ? 'Yesterday' : new Date(`${day}T00:00:00Z`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+}
+
+// Groups items into [[day, items], ...] in the order they come (newest first).
+function byDay(items, dayOf) {
+  const groups = new Map();
+  for (const it of items) {
+    const day = dayOf(it);
+    if (!groups.has(day)) groups.set(day, []);
+    groups.get(day).push(it);
+  }
+  return [...groups];
+}
+
+const daySection = (day, inner) => `<section class="news-day">
+      <h2 class="day-heading"><span>${esc(dayHeading(day))}</span>${dayHeading(day) === dateLabel(day) ? '' : ` <time datetime="${esc(day)}">${esc(dateLabel(day))}</time>`}</h2>
+      ${inner}
+    </section>`;
+
 export function newsPage({ stories, agentFor, headlines = [] }) {
+  const timeLabel = (d) => d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
   const body = stories.length
-    ? stories.map((s) => storyBlock(s, agentFor(s.agent_id))).join('')
-    : headlines.length
-      ? `<p class="notice">Polly is still warming up. Here are today's real AI headlines.</p><ul class="headlines">${headlines.slice(0, 20).map((h) =>
-        `<li><a href="${esc(h.link)}" target="_blank" rel="noopener">${esc(h.title)}</a> <span class="muted small">${esc(h.source)}</span></li>`).join('')}</ul>`
+    ? byDay(stories, (s) => s.day).map(([day, list]) =>
+      daySection(day, `<div class="stories">${list.map((s) => storyBlock(s, agentFor(s.agent_id), { showDate: false })).join('')}</div>`)).join('')
+    : headlines.some((h) => h.date instanceof Date)
+      ? `<p class="notice">Polly is still warming up. Here are the latest real AI headlines.</p>
+        ${byDay(headlines.filter((h) => h.date instanceof Date).slice(0, 40), (h) => h.date.toISOString().slice(0, 10)).map(([day, list]) =>
+          daySection(day, `<ul class="headlines">${list.map((h) =>
+            `<li><a href="${esc(h.link)}" target="_blank" rel="noopener">${esc(h.title)}</a><span class="muted small">${esc(h.source)} · ${esc(timeLabel(h.date))} UTC</span></li>`).join('')}</ul>`)).join('')}`
       : '<p class="muted">The first stories land tomorrow morning.</p>';
   return layout('The Daily Hallucination', `
     <section class="page-head">
@@ -422,7 +449,7 @@ export function newsPage({ stories, agentFor, headlines = [] }) {
       <h1>The Daily Hallucination</h1>
       <p class="lead">Five of today's AI stories, retold by a parrot who has read too many agent logs. Made up on purpose, with a link to the real thing.</p>
     </section>
-    <div class="stories">${body}</div>`, { description: "The Daily Hallucination: today's AI news as satire. Made up on purpose, with links to the real stories." });
+    ${body}`, { description: "The Daily Hallucination: today's AI news as satire. Made up on purpose, with links to the real stories." });
 }
 
 export function storyPage({ story, agent }) {

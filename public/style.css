@@ -284,7 +284,14 @@ th { font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; color:
 .polly-box { display: flex; gap: 12px; align-items: flex-start; background: var(--surface-2); border-left: 4px solid var(--green); border-radius: var(--radius-sm); padding: 12px 14px; margin-top: 12px; }
 .polly-box p { margin: 0; font-size: .92rem; }
 .polly-box .grade { vertical-align: middle; }
-.headlines li { margin-bottom: 8px; }
+.news-day { max-width: 760px; margin-top: 32px; }
+.day-heading { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; font-size: 1.25rem; padding-bottom: 8px; margin-bottom: 14px; border-bottom: 2px solid var(--green); }
+.day-heading time { font: 600 .9rem var(--body); color: var(--muted); }
+.headlines { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+.headlines li { display: grid; gap: 2px; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+.headlines li:last-child { border-bottom: 0; }
+.headlines a { color: var(--ink); font-weight: 600; text-decoration: none; }
+.headlines a:hover { color: var(--green-ink); text-decoration: underline; }
 
 /* ----- Game ----- */
 .game { max-width: 980px; }

@@ -278,19 +278,21 @@ export function openDb(client) {
         // The same entry can appear twice in one batch (two versions); the last one wins.
         const latest = [...new Map(rows.map((r) => [`${r.source}|${r.source_id}`, r])).values()];
         const keep = latest.filter((r) => r.keep);
-        for (let i = 0; i < keep.length; i += 200) {
+        for (let i = 0; i < keep.length; i += 500) {
           const params = [];
-          const values = keep.slice(i, i + 200).map((r) => `(${cols.map((c) => {
+          const values = keep.slice(i, i + 500).map((r) => `(${cols.map((c) => {
             params.push(c === 'x402' ? Boolean(r.x402) : c === 'description' ? r.description ?? '' : r[c] ?? null);
             return `$${params.length}`;
           }).join(', ')})`);
           await q(`INSERT INTO listed_agents (${cols.join(', ')}) VALUES ${values.join(', ')}
             ON CONFLICT (source, source_id) DO UPDATE SET ${cols.slice(2).map((c) => `${c} = excluded.${c}`).join(', ')}, synced_at = now()`, params);
         }
-        let removed = 0;
-        for (const r of latest.filter((x) => !x.keep)) {
-          removed += (await q('DELETE FROM listed_agents WHERE source = $1 AND source_id = $2 RETURNING source', [r.source, r.source_id])).length;
-        }
+        // One query for all the ones to take out: most registry entries aren't hosted, so there can be hundreds.
+        const drop = latest.filter((r) => !r.keep);
+        const removed = drop.length
+          ? (await q(`DELETE FROM listed_agents WHERE (source, source_id) IN (SELECT * FROM unnest($1::text[], $2::text[]))
+              RETURNING source`, [drop.map((r) => r.source), drop.map((r) => r.source_id)])).length
+          : 0;
         return { saved: keep.length, removed };
       },
       // Untested agents for the /listed page: search by name or description, optionally from one source.

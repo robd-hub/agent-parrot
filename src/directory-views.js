@@ -81,7 +81,7 @@ export function adminDirectoriesPage({ counts, state, hasGraphKey, report }) {
   };
   return layout('Directories', `<section class="card">
     <div class="card-head"><h1>Other directories</h1><nav class="tabs inline-tabs"><a href="/admin">Admin</a><a href="/listed">See the page</a></nav></div>
-    <p>Agents are copied in every morning at 05:00 UTC. A big first copy can take a few runs: each run carries on where the last stopped.
+    <p>Agents are copied in every morning at 05:00 UTC. A big first copy can take a few runs: each run carries on where the last stopped, and one run can take up to 3 minutes.
       Press the button to run one now.</p>
     ${report ? `<div class="notice"><ul>${report.map((r) => `<li><b>${esc(SOURCES[r.source].name)}:</b> ${r.skipped ? esc(r.skipped)
       : `${Number(r.saved)} saved, ${Number(r.removed)} taken out. ${r.done ? 'Up to date.' : 'More to copy: run it again.'}`}${r.error ? ` <span class="error">${esc(r.error)}</span>` : ''}</li>`).join('')}</ul></div>` : ''}

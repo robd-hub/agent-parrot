@@ -3,6 +3,7 @@ import express from 'express';
 import { syncDirectories, SOURCES } from './directories.js';
 import { listedPage, listedAgentPage, makerPage, adminDirectoriesPage, PER_PAGE } from './directory-views.js';
 import { listedOn } from './directories.js';
+import { checkHealth } from './health.js';
 import { makerKeyFrom, makerReputation, testedByMaker } from './makers.js';
 import { pageNotFound } from './views.js';
 
@@ -16,20 +17,21 @@ export async function reputationFor(db, key) {
   return { stats, tested, rep: makerReputation({ key, stats, tested, places }) };
 }
 
-export function directoryRoutes({ db, config, adminOnly, fetchFn = fetch }) {
+export function directoryRoutes({ db, config, adminOnly, fetchFn = fetch, lookup }) {
   const app = express.Router();
 
   app.get('/listed', async (req, res) => {
     const query = String(req.query.q ?? '').trim().slice(0, 80);
     const source = SOURCES[req.query.source] ? req.query.source : '';
+    const live = req.query.live === '1';
     const page = Math.min(Math.max(1, Number.parseInt(req.query.page, 10) || 1), 1000);
     const [{ rows, total }, counts] = await Promise.all([
-      db.listed.search({ query, source, limit: PER_PAGE, offset: (page - 1) * PER_PAGE }),
+      db.listed.search({ query, source, live, limit: PER_PAGE, offset: (page - 1) * PER_PAGE }),
       db.listed.counts(),
     ]);
     const makerCounts = await db.listed.makerCounts([...new Set(rows.map((r) => r.maker_key).filter(Boolean))]);
     res.set('Cache-Control', 'public, s-maxage=600, stale-while-revalidate=3600');
-    res.send(listedPage({ rows, total, query, source, page, counts, makerCounts }));
+    res.send(listedPage({ rows, total, query, source, live, page, counts, makerCounts }));
   });
 
   // One listed agent. MCP names have a slash in them, so the id can be several path segments.
@@ -56,14 +58,22 @@ export function directoryRoutes({ db, config, adminOnly, fetchFn = fetch }) {
     res.send(makerPage({ key, name, url: named?.maker_url, rep: maker.rep, tested: maker.tested, listed, total: maker.stats.agents }));
   });
 
-  const adminPage = async (res, report) => {
+  const adminPage = async (res, report, healthReport) => {
     const state = {};
     for (const id of Object.keys(SOURCES)) state[`sync_${id}_at`] = await db.settings.get(`sync_${id}_at`);
     res.set('Cache-Control', 'private, no-store');
-    res.send(adminDirectoriesPage({ counts: await db.listed.counts(), state, hasGraphKey: Boolean(config.graphApiKey), report }));
+    res.send(adminDirectoriesPage({ counts: await db.listed.counts(), state, hasGraphKey: Boolean(config.graphApiKey), report, health: await db.listed.healthCounts(), healthReport }));
   };
   app.get('/admin/directories', adminOnly, (req, res) => adminPage(res));
   app.post('/admin/directories/sync', adminOnly, async (req, res) => adminPage(res, await syncDirectories({ db, config, fetchFn })));
+
+  app.post('/admin/directories/health', adminOnly, async (req, res) => adminPage(res, null, await checkHealth({ db, fetchFn, lookup, budgetMs: 60000 })));
+
+  // Vercel Cron calls this four times a day (see vercel.json).
+  app.get('/api/cron/health', async (req, res) => {
+    if (config.cronSecret && req.headers.authorization !== `Bearer ${config.cronSecret}`) return res.status(401).json({ error: 'unauthorised' });
+    res.json(await checkHealth({ db, fetchFn, lookup }));
+  });
 
   // Vercel Cron calls this every morning (see vercel.json).
   app.get('/api/cron/directories', async (req, res) => {

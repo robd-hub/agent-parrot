@@ -1,6 +1,28 @@
 {
   "crons": [
-    { "path": "/api/cron/hallucination", "schedule": "0 6 * * *" },
-    { "path": "/api/cron/directories", "schedule": "0 5 * * *" }
+    {
+      "path": "/api/cron/hallucination",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/directories",
+      "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron/health",
+      "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/cron/health",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/health",
+      "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/cron/health",
+      "schedule": "0 19 * * *"
+    }
   ]
 }

@@ -89,6 +89,14 @@ const SCHEMA = `
   ALTER TABLE listed_agents ADD COLUMN IF NOT EXISTS first_published_at TIMESTAMPTZ;
   ALTER TABLE listed_agents ADD COLUMN IF NOT EXISTS details JSONB;
   CREATE INDEX IF NOT EXISTS listed_agents_maker ON listed_agents (maker_key);
+  -- Health checks (src/health.js): did it answer last time, how fast, what tools it lists, and the running uptime.
+  ALTER TABLE listed_agents ADD COLUMN IF NOT EXISTS checked_at TIMESTAMPTZ;
+  ALTER TABLE listed_agents ADD COLUMN IF NOT EXISTS up BOOLEAN;
+  ALTER TABLE listed_agents ADD COLUMN IF NOT EXISTS latency_ms INTEGER;
+  ALTER TABLE listed_agents ADD COLUMN IF NOT EXISTS health JSONB;
+  ALTER TABLE listed_agents ADD COLUMN IF NOT EXISTS checks INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE listed_agents ADD COLUMN IF NOT EXISTS up_checks INTEGER NOT NULL DEFAULT 0;
+  CREATE INDEX IF NOT EXISTS listed_agents_checked ON listed_agents (checked_at NULLS FIRST);
   -- Spot the Hallucination results, one row per member per day, for streaks and the weekly email.
   CREATE TABLE IF NOT EXISTS game_results (
     day        TEXT NOT NULL,
@@ -306,8 +314,9 @@ export function openDb(client) {
         return { saved: keep.length, removed };
       },
       // Untested agents for the /listed page: search by name or description, optionally from one source.
-      async search({ query = '', source = '', limit = 50, offset = 0 } = {}) {
+      async search({ query = '', source = '', live = false, limit = 50, offset = 0 } = {}) {
         const where = ['tested_id IS NULL'];
+        if (live) where.push('up IS TRUE');
         const params = [];
         if (source) {
           params.push(source);
@@ -325,11 +334,29 @@ export function openDb(client) {
         return { rows, total: total.n };
       },
       forTested: (id) => q('SELECT * FROM listed_agents WHERE tested_id = $1 ORDER BY source, source_id', [id]),
+      // Agents due a health check: never checked first, then the longest ago. Each is checked at most once a day.
+      dueForCheck: (limit) => q(`SELECT source, source_id, endpoint, details FROM listed_agents
+        WHERE endpoint IS NOT NULL AND (checked_at IS NULL OR checked_at < now() - interval '20 hours')
+        ORDER BY checked_at NULLS FIRST LIMIT $1`, [limit]),
+      async saveHealth(results) {
+        for (let i = 0; i < results.length; i += 500) {
+          const part = results.slice(i, i + 500);
+          await q(`UPDATE listed_agents l SET checked_at = now(), up = v.up, latency_ms = v.latency, health = v.health,
+              checks = l.checks + 1, up_checks = l.up_checks + (CASE WHEN v.up THEN 1 ELSE 0 END)
+            FROM (SELECT * FROM unnest($1::text[], $2::text[], $3::boolean[], $4::int[], $5::jsonb[]) AS t(source, source_id, up, latency, health)) v
+            WHERE l.source = v.source AND l.source_id = v.source_id`,
+          [part.map((r) => r.source), part.map((r) => r.source_id), part.map((r) => Boolean(r.up)), part.map((r) => (Number.isFinite(r.latency) ? Math.round(r.latency) : null)),
+            part.map((r) => JSON.stringify({ note: r.note ?? null, server: r.server ?? null, tools: r.tools ?? null, toolsMore: Boolean(r.toolsMore) }))]);
+        }
+      },
+      healthCounts: () => one(`SELECT count(*) FILTER (WHERE checked_at IS NOT NULL)::int AS checked, count(*) FILTER (WHERE up)::int AS up,
+        count(*) FILTER (WHERE endpoint IS NOT NULL)::int AS checkable FROM listed_agents`),
       get: (source, sourceId) => one('SELECT * FROM listed_agents WHERE source = $1 AND source_id = $2', [source, sourceId]),
       // Everything one maker has listed, newest first, and the totals their reputation is worked out from.
       byMaker: (key, limit = 100) => q('SELECT * FROM listed_agents WHERE maker_key = $1 ORDER BY updated_at DESC NULLS LAST, lower(name) LIMIT $2', [key, limit]),
       makerStats: (key) => one(`SELECT count(*)::int AS agents, count(DISTINCT source)::int AS sources, min(first_published_at) AS since,
-          coalesce(sum((details->>'feedback')::int), 0)::int AS feedback, array_remove(array_agg(DISTINCT tested_id), NULL) AS tested
+          coalesce(sum((details->>'feedback')::int), 0)::int AS feedback,
+          count(*) FILTER (WHERE checked_at IS NOT NULL)::int AS checked, count(*) FILTER (WHERE up)::int AS up, array_remove(array_agg(DISTINCT tested_id), NULL) AS tested
         FROM listed_agents WHERE maker_key = $1`, [key]),
       makerCounts: async (keys) => (keys.length
         ? Object.fromEntries((await q('SELECT maker_key, count(*)::int AS n FROM listed_agents WHERE maker_key = ANY($1::text[]) GROUP BY maker_key', [keys])).map((r) => [r.maker_key, r.n]))

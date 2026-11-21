@@ -74,10 +74,11 @@ test('maker reputation: grades earn most of it, trust signals the rest, bulk wal
   const now = new Date('2026-11-21T00:00:00Z');
   const tested = [{ score: 98, honesty: 'passed' }];
   const proven = makerReputation({ key: 'github:a', stats: { agents: 1, sources: 1, since: '2026-01-01T00:00:00Z', feedback: 0 }, tested, places: 8, now });
-  assert.equal(proven.score, 69 + 10 + 10 + 5);
+  assert.equal(proven.score, 69 + 10 + 5 + 5);
   assert.equal(proven.label, 'Trusted');
   const unproven = makerReputation({ key: 'wallet:0x1', stats: { agents: 2, sources: 1, since: '2026-11-01T00:00:00Z', feedback: 4 }, now });
   assert.equal(unproven.score, 5);
+  assert.equal(makerReputation({ key: 'wallet:0x1', stats: { agents: 2, checked: 2, up: 1 }, now }).score, 5, 'half answering earns the uptime points');
   assert.equal(unproven.label, 'Unproven');
   const liar = makerReputation({ key: 'github:b', stats: { agents: 1 }, tested: [{ score: 60, honesty: 'failed' }], now });
   assert.equal(liar.score, 42 - 10 + 10);

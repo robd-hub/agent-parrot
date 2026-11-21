@@ -399,3 +399,6 @@ th { font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; color:
 .maker-card > span:not(.grade):not(.go) { display: flex; flex-direction: column; flex: 1; }
 .maker-card .go { font-weight: 800; color: var(--green-ink); white-space: nowrap; align-self: center; }
 @media (max-width: 760px) { .makers-grid { grid-template-columns: 1fr; } }
+.tool-list { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 8px; }
+.tool-list code { font-weight: 700; }
+.agent-hero .tag-pass, .agent-hero .tag-fail { margin-bottom: 6px; }

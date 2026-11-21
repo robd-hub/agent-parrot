@@ -19,8 +19,8 @@ async function start(overrides = {}) {
   const app = createApp({
     db, config: { ...config, ...overrides.config },
     getHeadlines: async () => [
-      { title: 'Lab launches agent that books meetings', link: 'https://news.example/1', source: 'News', summary: 'An agent.' },
-      { title: 'New coding assistant ships', link: 'https://news.example/2', source: 'News', summary: 'Code.' },
+      { title: 'Lab launches agent that books meetings', link: 'https://news.example/1', source: 'News', summary: 'An agent.', date: new Date() },
+      { title: 'New coding assistant ships', link: 'https://news.example/2', source: 'News', summary: 'Code.', date: new Date(Date.now() - 864e5) },
     ],
     writeStories: async () => ({ stories: [
       { pick: 1, headline: 'Agent books 400 meetings with itself', body: 'Para one.\n\nPara two.', agent: 'general-assistant' },
@@ -70,6 +70,8 @@ test('light and dark mode, with a toggle in the top bar', async (t) => {
   const home = await req('/');
   assert.match(home.text, /data-theme-toggle/);
   assert.match(home.text, /localStorage\.getItem\('theme'\)/);
+  // Light unless someone picks dark: the device's dark setting doesn't switch it.
+  assert.doesNotMatch(home.text, /prefers-color-scheme/);
 });
 
 test('signed out, the top bar has Sign in and Sign up; each page links to the other', async (t) => {
@@ -173,6 +175,21 @@ test('the daily run starts paused, then writes stories with a Polly box once res
   const [story] = await s.db.stories.latest();
   await s.req(`/admin/news/${story.id}/hide`, { method: 'POST', headers: admin });
   assert.doesNotMatch((await s.req('/news')).text, /400 meetings/);
+});
+
+test('the Daily Hallucination is split by day, newest first', async (t) => {
+  const s = await start();
+  t.after(s.close);
+  // Before any stories: the real headlines, under Today and Yesterday.
+  let news = (await s.req('/news')).text;
+  assert.match(news, /class="day-heading"><span>Today<\/span>[\s\S]*books meetings[\s\S]*<span>Yesterday<\/span>[\s\S]*coding assistant ships/);
+  // With stories from two days, each day gets its own heading.
+  const yesterday = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
+  await s.db.stories.replaceDay(yesterday, [{ headline: 'Old parrot news', body: 'Squawk.', source: 'News', source_title: 'T', source_link: 'https://news.example/old' }]);
+  await s.req('/admin/news/resume', { method: 'POST', headers: admin });
+  await s.req('/api/cron/hallucination');
+  news = (await s.req('/news')).text;
+  assert.match(news, /<span>Today<\/span>[\s\S]*400 meetings[\s\S]*<span>Yesterday<\/span>[\s\S]*Old parrot news/);
 });
 
 test('admin pages need the password', async (t) => {

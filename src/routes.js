@@ -150,7 +150,8 @@ export function createRoutes({
   app.get('/get-polly-tested', (req, res) => res.send(views.getTestedPage({ agent: String(req.query.agent ?? '').slice(0, 300) })));
 
   app.get('/news', async (req, res) => {
-    const stories = await db.stories.latest();
+    // The past week of stories, newest day first; the page groups them by day.
+    const stories = (await db.stories.recent(7)).filter((s) => !s.hidden);
     if (stories.length) {
       res.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
       return res.send(views.newsPage({ stories, agentFor }));

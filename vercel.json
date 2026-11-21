@@ -14,15 +14,7 @@
     },
     {
       "path": "/api/cron/health",
-      "schedule": "0 9 * * *"
-    },
-    {
-      "path": "/api/cron/health",
       "schedule": "0 13 * * *"
-    },
-    {
-      "path": "/api/cron/health",
-      "schedule": "0 19 * * *"
     }
   ]
 }

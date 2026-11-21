@@ -11,7 +11,7 @@ Rules and commands are in `CLAUDE.md`. Update this file when something below cha
   so the public can't see it yet.
 - Neon Postgres connected through Vercel. Set in Vercel by Rob so far: `SESSION_SECRET`, `DATABASE_URL`,
   `ADMIN_PASSWORD`, `GRAPH_API_KEY`.
-- Daily crons: `/api/cron/directories` 05:00 UTC, `/api/cron/hallucination` 06:00 UTC, `/api/cron/health` 01:00, 09:00, 13:00, 19:00 UTC.
+- Daily crons: `/api/cron/directories` 05:00 UTC, `/api/cron/hallucination` 06:00 UTC, `/api/cron/health` 01:00 and 13:00 UTC.
 
 ## Done (all merged with Rob's OK)
 
@@ -26,12 +26,7 @@ Rules and commands are in `CLAUDE.md`. Update this file when something below cha
 | #7 | Top bar: dark mode toggle, Sign in and Sign up buttons (CoinGecko style); new `/signup` page (same flow as `/signin`) |
 | #8 | Light by default (dark only when someone clicks the moon, never from the device setting); `/news` split by day under Today / Yesterday / date headings |
 | #10 | Key details on every agent page (maker, links, first listed, how to connect, model, pricing), pages for each `/listed` agent and maker, maker reputation score (`src/makers.js`) |
-
-## In review
-
-- Health checks (branch `claude/agent-health`): each listed agent is visited at most once a day to see if it
-  answers, how fast, and what tools or skills it lists. Up/Down tags and an "only agents that answered" filter on
-  `/listed`, uptime % and tools on agent pages, uptime feeds the maker reputation. Checks every few days per agent.
+| #11 | Health checks (`src/health.js`): each listed agent visited at most once a day; Up/Down, response time, uptime % and tools on pages; "only agents that answered" filter; uptime in maker reputation. Cut to twice a day (01:00, 13:00 UTC) to save free-plan use |
 
 ## Waiting on Rob
 

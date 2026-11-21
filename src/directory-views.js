@@ -173,7 +173,7 @@ export function adminDirectoriesPage({ counts, state, hasGraphKey, report, healt
   </section>
   <section class="card">
     <h2>Health checks</h2>
-    <p>Each agent with an address gets one short visit at most once a day, to see if it answers and what tools it lists. Runs four times a day; each run checks the ones checked longest ago.</p>
+    <p>Each agent with an address gets one short visit at most once a day, to see if it answers and what tools it lists. Runs twice a day; each run checks the ones checked longest ago.</p>
     ${healthReport ? `<div class="notice">Checked ${Number(healthReport.checked)}; ${Number(healthReport.up)} answered.</div>` : ''}
     ${health ? `<p><b>${Number(health.checked).toLocaleString('en-GB')}</b> of ${Number(health.checkable).toLocaleString('en-GB')} checked so far, <b>${Number(health.up).toLocaleString('en-GB')}</b> answered last time.</p>` : ''}
     <form method="post" action="/admin/directories/health"><button type="submit">Check a batch now</button></form>

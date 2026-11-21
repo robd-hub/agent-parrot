@@ -69,7 +69,7 @@ export function directoryRoutes({ db, config, adminOnly, fetchFn = fetch, lookup
 
   app.post('/admin/directories/health', adminOnly, async (req, res) => adminPage(res, null, await checkHealth({ db, fetchFn, lookup, budgetMs: 60000 })));
 
-  // Vercel Cron calls this four times a day (see vercel.json).
+  // Vercel Cron calls this twice a day (see vercel.json).
   app.get('/api/cron/health', async (req, res) => {
     if (config.cronSecret && req.headers.authorization !== `Bearer ${config.cronSecret}`) return res.status(401).json({ error: 'unauthorised' });
     res.json(await checkHealth({ db, fetchFn, lookup }));

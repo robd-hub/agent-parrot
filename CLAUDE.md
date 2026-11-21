@@ -38,6 +38,7 @@ Postgres via `pg` on Vercel (Neon), PGlite locally and in tests (`./.data/pg`). 
 | `src/session.js`, `src/email.js`, `src/news.js` | Cookies, email sending, RSS feeds |
 | `src/directories.js` | Pulls agents in from the Official MCP Registry and ERC-8004 (daily cron `/api/cron/directories`), "Listed on" badges |
 | `src/directory-routes.js`, `src/directory-views.js` | `/listed` (agents not Polly Tested yet) and `/admin/directories` |
+| `src/feed.js` | Public grades feed: `/api/grades.json`, `/api/grades/<id>.json`, `/api/grades/lookup`, and the `/feed` page |
 | `data/listed-on.json` | Hand-kept: where our own tested agents are registered, and entries never shown as untested |
 | `scripts/sync-grades.mjs` | Copies grades from the Agent Report Card repo into `data/` |
 | `public/` | `style.css`, `parrot.svg` (Polly, the signature parrot), `game.js`, icons |

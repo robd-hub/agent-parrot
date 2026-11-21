@@ -41,7 +41,7 @@ npm start           # what Vercel runs
   deploys to https://agent-parrot.vercel.app on its own; every PR gets a preview link.
 - That address is behind Vercel's login (team default) until a custom domain is added, so only team members see it.
 - Neon Postgres is connected through Vercel (`DATABASE_URL`). Env values are set in Vercel by Rob, never in files.
-- Crons are in `vercel.json` and are protected by `CRON_SECRET`.
+- Crons are in `vercel.json`. They only check `CRON_SECRET` once it is set in Vercel (not set yet).
 
 ## File map
 

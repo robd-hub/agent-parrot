@@ -214,6 +214,17 @@ a.agent-card:hover { border-color: var(--green); box-shadow: var(--shadow); }
 .agent-main { flex: 1; display: grid; gap: 2px; min-width: 0; }
 .agent-desc { color: var(--muted); font-size: .9rem; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .agent-tags { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.agent-tags .btn { margin-left: 4px; }
+/* Agents from other directories (/listed) and the "Also listed on" badges */
+.listed-search { display: flex; gap: 8px; margin: 14px 0 8px; }
+.listed-search input { flex: 1; }
+.listed-link { margin: 18px 0; padding: 14px 16px; border: 1.5px dashed var(--line); border-radius: var(--radius); }
+.listed-on { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 12px; }
+.listed-on a.tag { text-decoration: none; }
+.listed-on a.tag:hover { outline: 1.5px solid var(--green); }
+.pager { display: flex; gap: 12px; align-items: center; justify-content: center; margin: 20px 0; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@media (max-width: 640px) { .agent-card.untested { flex-wrap: wrap; } .agent-card.untested .agent-tags { justify-content: flex-start; width: 100%; } }
 @media (max-width: 600px) { .agent-card { flex-wrap: wrap; } .agent-main { flex-basis: calc(100% - 70px); } .agent-tags { width: 100%; justify-content: flex-start; padding-left: 68px; } }
 
 /* ----- Agent page ----- */

@@ -1,0 +1,20 @@
+{
+ "_about": "Hand-kept: where our own tested agents are registered, for the Listed on badges. Matches from the synced directories are added automatically. 'ids' are its entries in the synced directories (erc8004 chain can be *) and 'sites' are web addresses that identify it. 'hide' lists directory entries never shown as untested (the grader itself).",
+ "agents": {
+  "cheap-first": {
+   "ids": ["mcp:io.github.robd-hub/cheap-first", "erc8004:*:1202503"],
+   "sites": ["https://cheap-first.vercel.app"],
+   "listings": [
+    { "name": "Official MCP Registry", "detail": "v0.1.1", "url": "https://cheap-first.vercel.app" },
+    { "name": "ERC-8004 registry", "detail": "#1202503" },
+    { "name": "Concordium registry", "detail": "#1256" },
+    { "name": "OpenServ marketplace", "detail": "#4963, in review" },
+    { "name": "x402scan" },
+    { "name": "Coinbase x402" },
+    { "name": "NEAR AI Agent Market", "detail": "Cheap First Verifier" },
+    { "name": "mcptry", "detail": "86/100" }
+   ]
+  }
+ },
+ "hide": ["mcp:io.github.robd-hub/agent-report-card", "erc8004:*:1202502"]
+}

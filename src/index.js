@@ -29,6 +29,10 @@ const config = {
   emailFrom: env.EMAIL_FROM,
   adminEmail: env.ADMIN_EMAIL,
   // Where grades and grade orders live (Agent Report Card).
+  // Free Subgraph Studio key (thegraph.com/studio) for reading the ERC-8004 agent registry. Without it, only the
+  // Official MCP Registry is synced. ERC8004_CHAINS picks chains, e.g. "base,ethereum" (default: all four).
+  graphApiKey: env.GRAPH_API_KEY,
+  erc8004Chains: (env.ERC8004_CHAINS || '').split(',').map((c) => c.trim()).filter(Boolean),
   graderUrl: (env.GRADER_URL || 'https://grader.designimp.com').replace(/\/$/, ''),
   logEmails: !isProd && !env.VERCEL,
   devFakeLogin: !isProd && !env.VERCEL && env.DEV_FAKE_LOGIN === '1',

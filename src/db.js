@@ -64,6 +64,24 @@ const SCHEMA = `
     suggested_by TEXT REFERENCES members (id) ON DELETE SET NULL,
     created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
   );
+  -- Agents listed in other public directories (Official MCP Registry, ERC-8004), synced daily by
+  -- src/directories.js. Shown as "not Polly Tested yet". tested_id is set when it is one of our graded agents.
+  CREATE TABLE IF NOT EXISTS listed_agents (
+    source      TEXT NOT NULL,
+    source_id   TEXT NOT NULL,
+    name        TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    url         TEXT,
+    endpoint    TEXT,
+    image       TEXT,
+    chain       TEXT,
+    x402        BOOLEAN NOT NULL DEFAULT false,
+    tested_id   TEXT,
+    updated_at  TIMESTAMPTZ,
+    synced_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (source, source_id)
+  );
+  CREATE INDEX IF NOT EXISTS listed_agents_tested ON listed_agents (tested_id);
   -- Spot the Hallucination results, one row per member per day, for streaks and the weekly email.
   CREATE TABLE IF NOT EXISTS game_results (
     day        TEXT NOT NULL,
@@ -250,6 +268,52 @@ export function openDb(client) {
       setStatus: (id, status) => q('UPDATE listings SET status = $2 WHERE id = $1', [id, status]),
       remove: (id) => q('DELETE FROM listings WHERE id = $1', [id]),
       recentSuggestions: async (seconds) => (await one("SELECT count(*)::int AS n FROM listings WHERE created_at > now() - make_interval(secs => $1)", [seconds])).n,
+    },
+
+    // Agents from other directories (see src/directories.js).
+    listed: {
+      // Saves a batch from one sync: adds or updates the ones to keep, takes out the rest.
+      async save(rows) {
+        const cols = ['source', 'source_id', 'name', 'description', 'url', 'endpoint', 'image', 'chain', 'x402', 'tested_id', 'updated_at'];
+        // The same entry can appear twice in one batch (two versions); the last one wins.
+        const latest = [...new Map(rows.map((r) => [`${r.source}|${r.source_id}`, r])).values()];
+        const keep = latest.filter((r) => r.keep);
+        for (let i = 0; i < keep.length; i += 200) {
+          const params = [];
+          const values = keep.slice(i, i + 200).map((r) => `(${cols.map((c) => {
+            params.push(c === 'x402' ? Boolean(r.x402) : c === 'description' ? r.description ?? '' : r[c] ?? null);
+            return `$${params.length}`;
+          }).join(', ')})`);
+          await q(`INSERT INTO listed_agents (${cols.join(', ')}) VALUES ${values.join(', ')}
+            ON CONFLICT (source, source_id) DO UPDATE SET ${cols.slice(2).map((c) => `${c} = excluded.${c}`).join(', ')}, synced_at = now()`, params);
+        }
+        let removed = 0;
+        for (const r of latest.filter((x) => !x.keep)) {
+          removed += (await q('DELETE FROM listed_agents WHERE source = $1 AND source_id = $2 RETURNING source', [r.source, r.source_id])).length;
+        }
+        return { saved: keep.length, removed };
+      },
+      // Untested agents for the /listed page: search by name or description, optionally from one source.
+      async search({ query = '', source = '', limit = 50, offset = 0 } = {}) {
+        const where = ['tested_id IS NULL'];
+        const params = [];
+        if (source) {
+          params.push(source);
+          where.push(`source = $${params.length}`);
+        }
+        if (query) {
+          params.push(`%${query.replace(/[\\%_]/g, (c) => `\\${c}`)}%`);
+          where.push(`(name ILIKE $${params.length} OR description ILIKE $${params.length})`);
+        }
+        const from = `FROM listed_agents WHERE ${where.join(' AND ')}`;
+        const [rows, total] = await Promise.all([
+          q(`SELECT * ${from} ORDER BY updated_at DESC NULLS LAST, lower(name) LIMIT ${Number(limit)} OFFSET ${Number(offset)}`, params),
+          one(`SELECT count(*)::int AS n ${from}`, params),
+        ]);
+        return { rows, total: total.n };
+      },
+      forTested: (id) => q('SELECT * FROM listed_agents WHERE tested_id = $1 ORDER BY source, source_id', [id]),
+      counts: () => q('SELECT source, count(*) FILTER (WHERE tested_id IS NULL)::int AS untested, count(*)::int AS total FROM listed_agents GROUP BY source ORDER BY source'),
     },
 
     game: {

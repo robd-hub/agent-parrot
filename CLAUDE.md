@@ -19,7 +19,7 @@ secret into chat; env values never go in the repo, a PR or chat.
 
 Node 24, ES modules, Express 5, HTML from template strings in `src/*views.js`, no framework or build step.
 Postgres via `pg` on Vercel (Neon), PGlite locally and in tests (`./.data/pg`). Vercel Cron calls
-`/api/cron/hallucination` at 06:00 UTC, `/api/cron/directories` at 05:00 UTC and `/api/cron/health` at 01:00, 09:00, 13:00 and 19:00 UTC. Claude API writes The Daily Hallucination (`src/hallucination.js`).
+`/api/cron/hallucination` at 06:00 UTC, `/api/cron/directories` at 05:00 UTC and `/api/cron/health` at 01:00 and 13:00 UTC. Claude API writes The Daily Hallucination (`src/hallucination.js`).
 
 ## Commands
 

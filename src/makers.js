@@ -58,8 +58,8 @@ export const testedByMaker = (key, testedIds = []) =>
 //   Track record, up to 70: the average Squawk Score of their Polly Tested agents x 0.7, less 10 for each one that
 //     made something up on the honesty check. Only makers with a tested agent can earn these points.
 //   Trust signals, up to 30: 10 if a registry checked who they are (a GitHub login or a domain in the MCP Registry),
-//     10 for being listed 6 months or more (5 for a month or more), 5 for being listed in 2 or more places, 5 for any
-//     on-chain feedback.
+//     5 for being listed 6 months or more (3 for a month or more), 5 for being listed in 2 or more places, 5 for any
+//     on-chain feedback, 5 if at least half their agents answered at their last health check.
 //   Bulk warning: 50 or more agents from one maker takes 10 off the trust points. Spam wallets often do this.
 // So a maker with nothing tested can reach 30 at most, and is labelled Unproven.
 export function makerReputation({ key, stats, tested = [], places = 0, now = new Date() }) {
@@ -78,12 +78,16 @@ export function makerReputation({ key, stats, tested = [], places = 0, now = new
   const checked = Boolean(MAKER_KINDS[kind]?.checked && stats?.agents);
   lines.push({ points: checked ? 10 : 0, of: 10, text: checked ? 'Identity checked by the Official MCP Registry' : 'Identity not checked: anyone can make a wallet' });
   const days = stats?.since ? (now - new Date(stats.since)) / 86400000 : 0;
-  const age = days >= 182 ? 10 : days >= 30 ? 5 : 0;
-  lines.push({ points: age, of: 10, text: stats?.since ? `Listed for ${days < 1 ? 'less than a day' : `${Math.floor(days)} ${Math.floor(days) === 1 ? 'day' : 'days'}`}` : 'No listing date' });
+  const age = days >= 182 ? 5 : days >= 30 ? 3 : 0;
+  lines.push({ points: age, of: 5, text: stats?.since ? `Listed for ${days < 1 ? 'less than a day' : `${Math.floor(days)} ${Math.floor(days) === 1 ? 'day' : 'days'}`}` : 'No listing date' });
   const where = Math.max(places, stats?.sources ?? 0);
   lines.push({ points: where >= 2 ? 5 : 0, of: 5, text: `Listed in ${where} ${where === 1 ? 'place' : 'places'}` });
   const fb = stats?.feedback ?? 0;
   lines.push({ points: fb > 0 ? 5 : 0, of: 5, text: fb ? `${fb} on-chain feedback ${fb === 1 ? 'entry' : 'entries'}` : 'No on-chain feedback' });
+  const checkedN = stats?.checked ?? 0;
+  const upN = stats?.up ?? 0;
+  lines.push({ points: checkedN && upN * 2 >= checkedN ? 5 : 0, of: 5, text: checkedN
+    ? `${upN} of ${checkedN} ${checkedN === 1 ? 'agent' : 'agents'} answered at the last health check` : 'Not health checked yet' });
   let trust = lines.slice(1).reduce((n, l) => n + l.points, 0);
   const bulk = (stats?.agents ?? 0) >= 50;
   if (bulk) {

@@ -32,7 +32,7 @@ const linkedInProfile = async (opts) => {
 };
 
 export function createRoutes({
-  db, config,
+  db, config, lookup,
   fetchProfile = (provider, opts) => (provider === 'linkedin' ? linkedInProfile(opts) : oauth.fetchProfile(provider, opts)),
   getHeadlines = cachedHeadlines(),
   writeStories = claudeWriter({ apiKey: config.anthropicApiKey }),
@@ -142,7 +142,7 @@ export function createRoutes({
     const rows = await db.listed.forTested(agent.id);
     const listed = listedOnBlock(listedOn(agent, rows));
     const d = testedDetails(agent, rows);
-    const details = testedDetailsBlock(d, { gradedAt: agent.gradedAt, rep: (await reputationFor(db, d.makerKey))?.rep });
+    const details = testedDetailsBlock(d, { gradedAt: agent.gradedAt, rows, rep: (await reputationFor(db, d.makerKey))?.rep });
     res.set('Cache-Control', 'public, s-maxage=600, stale-while-revalidate=3600');
     res.send(views.agentPage({ agent, place: order.find((a) => a.id === agent.id).place, total: order.length, listed, details }));
   });
@@ -339,7 +339,7 @@ export function createRoutes({
   };
 
   app.use(squawkRoutes({ db, config, adminOnly, sendEmail, now }));
-  app.use(directoryRoutes({ db, config, adminOnly, fetchFn }));
+  app.use(directoryRoutes({ db, config, adminOnly, fetchFn, lookup }));
   app.use(feedRoutes({ config }));
 
   app.get('/admin', adminOnly, async (req, res) => {

@@ -19,14 +19,14 @@ secret into chat; env values never go in the repo, a PR or chat.
 
 Node 24, ES modules, Express 5, HTML from template strings in `src/*views.js`, no framework or build step.
 Postgres via `pg` on Vercel (Neon), PGlite locally and in tests (`./.data/pg`). Vercel Cron calls
-`/api/cron/hallucination` at 06:00 UTC and `/api/cron/directories` at 05:00 UTC. Claude API writes The Daily Hallucination (`src/hallucination.js`).
+`/api/cron/hallucination` at 06:00 UTC, `/api/cron/directories` at 05:00 UTC and `/api/cron/health` at 01:00, 09:00, 13:00 and 19:00 UTC. Claude API writes The Daily Hallucination (`src/hallucination.js`).
 
 ## Commands
 
 ```bash
 npm install         # once
 npm run dev         # http://localhost:3000, reloads on save, reads .env if present
-npm test            # node --test, every file in test/ (32 tests, all should pass)
+npm test            # node --test, every file in test/ (36 tests, all should pass)
 npm run sync-grades # copy grades from ../agent-report-card/data into data/ (both repos side by side)
 npm start           # what Vercel runs
 ```
@@ -61,6 +61,7 @@ npm start           # what Vercel runs
 | `src/session.js`, `src/email.js`, `src/news.js` | Cookies, email sending, RSS feeds |
 | `src/directories.js` | Pulls agents in from the Official MCP Registry and ERC-8004 (daily cron `/api/cron/directories`), "Listed on" badges |
 | `src/directory-routes.js`, `src/directory-views.js` | `/listed` (agents not Polly Tested yet), each listed agent's page `/listed/<source>/<id>`, maker pages `/makers/<kind>/<id>`, `/admin/directories` |
+| `src/health.js` | Health checks: does each listed agent answer, how fast, what tools/skills it lists. Public addresses only, no redirects |
 | `src/makers.js` | Key details for tested agents (maker, links, dates, model, pricing) and the maker reputation score |
 | `data/agent-facts.json` | Hand-kept facts the grade data lacks (maker, website, pricing). Only confirmed facts; leave blanks blank |
 | `src/feed.js` | Public grades feed: `/api/grades.json`, `/api/grades/<id>.json`, `/api/grades/lookup`, and the `/feed` page |

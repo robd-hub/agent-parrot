@@ -19,6 +19,32 @@ const makerLink = (name, key, url) => {
 };
 export const detailsList = (rows) => `<dl class="details">${rows.join('')}</dl>`;
 
+// Health check results (src/health.js) for one listed agent.
+const ms = (n) => (n >= 1000 ? `${(n / 1000).toFixed(1)} seconds` : `${Number(n)} ms`);
+export const healthTag = (r) => (!r.checked_at ? '' : r.up ? '<span class="tag tag-pass" title="Answered at the last health check">Up</span>'
+  : '<span class="tag tag-fail" title="Did not answer at the last health check">Down</span>');
+const toolsOf = (r) => r.health?.tools ?? null;
+export function healthRows(r) {
+  if (!r.endpoint) return [row('Health check', '', 'No address to check')];
+  if (!r.checked_at) return [row('Health check', '', 'Not checked yet: every agent is checked every few days')];
+  const h = r.health ?? {};
+  const uptime = r.checks ? Math.round((100 * r.up_checks) / r.checks) : null;
+  return [
+    row('Last health check', `${r.up ? '<b class="ok">Answered</b>' : '<b class="bad">No answer</b>'} on ${day(r.checked_at)}${h.note ? ` <span class="muted small">(${esc(h.note)})</span>` : ''}`),
+    row('Response time', r.up && r.latency_ms != null ? esc(ms(r.latency_ms)) : '', 'Not measured'),
+    row('Uptime', uptime == null ? '' : `${uptime}% <span class="muted small">of ${Number(r.checks)} ${r.checks === 1 ? 'check' : 'checks'}</span>`),
+    h.server?.name ? row('Says it is', `${esc(h.server.name)}${h.server.version ? ` ${esc(h.server.version)}` : ''}${h.server.protocol ? ` <span class="muted small">protocol ${esc(h.server.protocol)}</span>` : ''}`) : '',
+  ];
+}
+export function toolsBlock(r) {
+  const tools = toolsOf(r);
+  if (!tools?.length) return '';
+  const a2a = r.source === 'erc8004' && !r.details?.mcp;
+  return `<section class="card section"><h2>What it can do: ${tools.length}${r.health?.toolsMore ? '+' : ''} ${a2a ? 'skills' : 'tools'}</h2>
+    <p class="muted small">Read from the agent itself at its last health check.</p>
+    <ul class="tool-list">${tools.map((t) => `<li><code>${esc(t.name)}</code>${t.description ? ` <span class="muted">${esc(t.description)}</span>` : ''}</li>`).join('')}</ul></section>`;
+}
+
 // The reputation box on a maker's page and, smaller, on agent pages.
 export function reputationBlock(rep, { compact = false, path } = {}) {
   if (!rep) return '';
@@ -31,7 +57,8 @@ export function reputationBlock(rep, { compact = false, path } = {}) {
 }
 
 // Key details for a tested agent (from src/makers.js testedDetails).
-export function testedDetailsBlock(d, { gradedAt, rep } = {}) {
+export function testedDetailsBlock(d, { gradedAt, rep, rows = [] } = {}) {
+  const checked = rows.filter((r) => r.endpoint).sort((a, b) => (a.source === 'mcp' ? -1 : 1) - (b.source === 'mcp' ? -1 : 1))[0];
   return `<section class="card section"><h2>Key details</h2>
     ${detailsList([
       row('Made by', d.maker ? makerLink(d.maker.name, d.makerKey, d.maker.url) : '', d.makerNote || 'Not known yet'),
@@ -44,10 +71,12 @@ export function testedDetailsBlock(d, { gradedAt, rep } = {}) {
       d.version ? row('Version', esc(d.version)) : '',
       row('Chains', tags(d.chains), 'None'),
       row('Pricing', esc(d.pricing ?? '') || (d.x402 ? 'Pay per call over x402' : ''), 'Not published'),
+      ...(checked ? healthRows(checked) : [row('Health check', '', d.connection?.startsWith('OpenServ') ? 'Reached through OpenServ, so not checked directly' : 'Not listed with a public address yet')]),
     ])}
     ${d.note ? `<p class="muted small">${esc(d.note)}</p>` : ''}
     ${rep ? reputationBlock(rep, { compact: true, path: makerPath(d.makerKey) }) : ''}
-  </section>`;
+  </section>
+  ${checked ? toolsBlock(checked) : ''}`;
 }
 
 const PER_PAGE = 50;
@@ -65,18 +94,19 @@ function listedCard(r, makerCounts = {}) {
       <span class="agent-main"><strong><a href="${esc(link)}">${esc(r.name)}</a></strong>
         <span class="muted small">${r.maker_name ? `by ${makerPath(r.maker_key) ? `<a href="${esc(makerPath(r.maker_key))}">${esc(r.maker_name)}</a>` : esc(r.maker_name)}${others > 0 ? ` (+${others.toLocaleString('en-GB')} more)` : ''}` : r.source === 'mcp' ? esc(r.source_id) : `Agent #${esc(r.source_id.split(':')[1])}`} · not Polly Tested yet</span>
         ${r.description ? `<span class="agent-desc">${esc(r.description)}</span>` : ''}</span>
-      <span class="agent-tags">${sourceTag(r)}${r.x402 ? '<span class="tag">x402</span>' : ''}
+      <span class="agent-tags">${healthTag(r)}${toolsOf(r)?.length ? `<span class="tag">${toolsOf(r).length}${r.health?.toolsMore ? '+' : ''} ${r.source === 'erc8004' && !r.details?.mcp ? 'skills' : 'tools'}</span>` : ''}${sourceTag(r)}${r.x402 ? '<span class="tag">x402</span>' : ''}
         <a class="btn small" href="/get-polly-tested?agent=${encodeURIComponent(testWith)}">Get it tested</a></span>
     </div>`;
 }
 
-export function listedPage({ rows, total, query, source, page, counts, makerCounts = {} }) {
+export function listedPage({ rows, total, query, source, live = false, page, counts, makerCounts = {} }) {
   const all = counts.reduce((n, c) => n + c.untested, 0);
   const pages = Math.max(1, Math.ceil(total / PER_PAGE));
-  const link = (p, s = source) => {
+  const link = (p, s = source, l = live) => {
     const qs = new URLSearchParams();
     if (query) qs.set('q', query);
     if (s) qs.set('source', s);
+    if (l) qs.set('live', '1');
     if (p > 1) qs.set('page', String(p));
     return `/listed${qs.size ? `?${qs}` : ''}`;
   };
@@ -95,9 +125,11 @@ export function listedPage({ rows, total, query, source, page, counts, makerCoun
       ${source ? `<input type="hidden" name="source" value="${esc(source)}">` : ''}
       <label class="sr-only" for="listed-q">Search agents</label>
       <input id="listed-q" name="q" value="${esc(query)}" maxlength="80" placeholder="Search by name or what it does">
+      ${live ? '<input type="hidden" name="live" value="1">' : ''}
       <button type="submit">Search</button>
     </form>
-    <p class="muted small">${total ? `${total.toLocaleString('en-GB')} ${total === 1 ? 'agent' : 'agents'}${query ? ` matching "${esc(query)}"` : ''}. Newest first.` : ''}</p>
+    <p class="small"><a href="${esc(link(1, source, !live))}">${live ? 'Show all agents' : 'Only show agents that answered their last health check'}</a></p>
+    <p class="muted small">${total ? `${total.toLocaleString('en-GB')} ${total === 1 ? 'agent' : 'agents'}${query ? ` matching "${esc(query)}"` : ''}${live ? ' that answered their last health check' : ''}. Newest first.` : ''}</p>
     <div class="agent-list">${rows.map((r) => listedCard(r, makerCounts)).join('') || `<p class="muted">${all ? 'No agents match that search.' : 'Nothing synced yet. Check back tomorrow.'}</p>`}</div>
     ${pages > 1 ? `<nav class="pager" aria-label="Pages">
       ${page > 1 ? `<a class="btn ghost small" href="${esc(link(page - 1))}">Newer</a>` : ''}
@@ -121,7 +153,7 @@ export function listedOnBlock(list) {
     }).join('')}</div>`;
 }
 
-export function adminDirectoriesPage({ counts, state, hasGraphKey, report }) {
+export function adminDirectoriesPage({ counts, state, hasGraphKey, report, health, healthReport }) {
   const line = (id) => {
     const c = counts.find((x) => x.source === id);
     const at = state[`sync_${id}_at`];
@@ -138,6 +170,13 @@ export function adminDirectoriesPage({ counts, state, hasGraphKey, report }) {
     <div class="table-scroll"><table><thead><tr><th>Directory</th><th>Agents</th><th>Not tested</th><th>Last full copy</th></tr></thead>
       <tbody>${Object.keys(SOURCES).map(line).join('')}</tbody></table></div>
     <form method="post" action="/admin/directories/sync"><button type="submit">Copy now</button></form>
+  </section>
+  <section class="card">
+    <h2>Health checks</h2>
+    <p>Each agent with an address gets one short visit at most once a day, to see if it answers and what tools it lists. Runs four times a day; each run checks the ones checked longest ago.</p>
+    ${healthReport ? `<div class="notice">Checked ${Number(healthReport.checked)}; ${Number(healthReport.up)} answered.</div>` : ''}
+    ${health ? `<p><b>${Number(health.checked).toLocaleString('en-GB')}</b> of ${Number(health.checkable).toLocaleString('en-GB')} checked so far, <b>${Number(health.up).toLocaleString('en-GB')}</b> answered last time.</p>` : ''}
+    <form method="post" action="/admin/directories/health"><button type="submit">Check a batch now</button></form>
   </section>`, { wide: true });
 }
 
@@ -163,6 +202,7 @@ export function listedAgentPage({ r, rep, more = [] }) {
       <span class="grade grade-none xl" title="Not Polly Tested yet">?</span>
       <div>
         <p class="eyebrow">${esc(SOURCES[r.source]?.name ?? r.source)}${r.chain ? ` · ${esc(r.chain)}` : ''} · not Polly Tested yet</p>
+        ${healthTag(r)}
         <h1>${esc(r.name)}</h1>
         ${r.description ? `<p class="lead">${esc(r.description)}</p>` : '<p class="lead muted">No description given.</p>'}
         <p class="meaning">Polly hasn't checked this agent's work, so it has no grade. The details below are what its directory says.</p>
@@ -188,8 +228,10 @@ export function listedAgentPage({ r, rep, more = [] }) {
         !isMcp ? row('On-chain feedback', d.feedback ? `${Number(d.feedback).toLocaleString('en-GB')} ${d.feedback === 1 ? 'entry' : 'entries'}` : '', 'None yet') : '',
         row('Payments', r.x402 ? 'Takes x402 payments' : '', isMcp ? 'Not stated' : 'No x402'),
         row('AI model', '', 'Not published: neither registry asks for it'),
+        ...healthRows(r),
       ])}
     </section>
+    ${toolsBlock(r)}
     ${rep ? `<section class="card section"><h2>Who made it</h2>${reputationBlock(rep)}
       ${more.length ? `<h3>More from ${esc(r.maker_name)}</h3><ul class="plain-list">${more.map((m) => `<li><a href="${esc(listedPath(m))}">${esc(m.name)}</a></li>`).join('')}</ul>` : ''}</section>` : ''}
     <section class="card cta-card section">

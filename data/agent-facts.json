@@ -1,0 +1,32 @@
+{
+ "_about": "Hand-kept facts about tested agents that the grade data doesn't carry: who made it, links, pricing, when it first appeared. Only add what Rob confirmed or a public page shows; leave a field out rather than guess, and the page says it isn't known. Grades never go here. 'maker.key' joins the agent to its maker's page and reputation (github:<login>, web:<domain> or wallet:<address>). 'platforms' are defaults by how Agent Report Card reached the agent.",
+ "platforms": {
+  "openserv-marketplace": {
+   "platform": "OpenServ marketplace",
+   "connection": "OpenServ platform (tasks sent through OpenServ)",
+   "makerNote": "OpenServ doesn't show who made its agents without a sign-in."
+  },
+  "openai-compatible": { "connection": "OpenAI-compatible chat API" },
+  "http-json": { "connection": "Web API (JSON over HTTPS)" }
+ },
+ "agents": {
+  "cheap-first": {
+   "maker": { "name": "Agent Report Card team", "url": "https://grader.designimp.com", "key": "github:robd-hub" },
+   "website": "https://cheap-first.vercel.app/",
+   "repo": "https://github.com/robd-hub/cheap-first",
+   "firstListed": "2026-11-19",
+   "firstListedWhere": "Official MCP Registry, version 0.1.0",
+   "platform": "Its own site, plus MCP",
+   "connection": "MCP (streamable HTTP) and a web API",
+   "model": "A cheap model first, then a premium model only when the check fails (models not published)",
+   "chains": ["Base"],
+   "pricing": "Free demo. Paid: $0.005 USDC per call on Base over x402, or a prepaid key. $0.05 per check on NEAR AI Agent Market.",
+   "note": "Our own agent. It gets no special treatment and is regraded every Monday."
+  },
+  "serv-baseline": {
+   "maker": { "name": "Agent Report Card (a reference setup)", "url": "https://grader.designimp.com" },
+   "platform": "OpenServ SERV Reasoning",
+   "note": "Not a product: a plain model with no tools, used as the yardstick for every other grade."
+  }
+ }
+}

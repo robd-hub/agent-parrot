@@ -16,7 +16,9 @@ import { squawkRoutes } from './squawk.js';
 import { directoryRoutes } from './directory-routes.js';
 import { feedRoutes } from './feed.js';
 import { listedOn } from './directories.js';
-import { listedOnBlock } from './directory-views.js';
+import { listedOnBlock, testedDetailsBlock } from './directory-views.js';
+import { reputationFor } from './directory-routes.js';
+import { testedDetails } from './makers.js';
 
 // A complete app around the routes, used by tests.
 export function createApp(options) {
@@ -137,9 +139,12 @@ export function createRoutes({
     const agent = agentById(req.params.id);
     if (!agent) return res.status(404).send(views.pageNotFound());
     const order = peckingOrder();
-    const listed = listedOnBlock(listedOn(agent, await db.listed.forTested(agent.id)));
+    const rows = await db.listed.forTested(agent.id);
+    const listed = listedOnBlock(listedOn(agent, rows));
+    const d = testedDetails(agent, rows);
+    const details = testedDetailsBlock(d, { gradedAt: agent.gradedAt, rep: (await reputationFor(db, d.makerKey))?.rep });
     res.set('Cache-Control', 'public, s-maxage=600, stale-while-revalidate=3600');
-    res.send(views.agentPage({ agent, place: order.find((a) => a.id === agent.id).place, total: order.length, listed }));
+    res.send(views.agentPage({ agent, place: order.find((a) => a.id === agent.id).place, total: order.length, listed, details }));
   });
 
   app.get('/pecking-order', (req, res) => {

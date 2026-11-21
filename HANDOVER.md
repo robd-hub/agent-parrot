@@ -5,7 +5,7 @@ Rules and commands are in `CLAUDE.md`. Update this file when something below cha
 
 ## Live now
 
-- Repo `robd-hub/agent-parrot`, default branch `main`. `npm test`: 27 tests, all passing.
+- Repo `robd-hub/agent-parrot`, default branch `main`. `npm test`: 32 tests, all passing.
 - Vercel project `agent-parrot` (team designimp-projects, Hobby plan), linked to the repo, deploys `main`
   automatically: https://agent-parrot.vercel.app. Behind Vercel's login until a custom domain is added,
   so the public can't see it yet.
@@ -25,6 +25,12 @@ Rules and commands are in `CLAUDE.md`. Update this file when something below cha
 | #6 | `CLAUDE.md` and this file updated for working in Antigravity too |
 | #7 | Top bar: dark mode toggle, Sign in and Sign up buttons (CoinGecko style); new `/signup` page (same flow as `/signin`) |
 | #8 | Light by default (dark only when someone clicks the moon, never from the device setting); `/news` split by day under Today / Yesterday / date headings |
+
+## In review
+
+- Agent details (branch `claude/agent-details`): key details on every agent page (maker, links, first listed, how to
+  connect, AI model, pricing, chains), pages for each `/listed` agent and each maker, and a first maker reputation
+  score (formula in `src/makers.js`, for Rob to tune). Model and OpenServ makers aren't public, so they show as not known.
 
 ## Waiting on Rob
 

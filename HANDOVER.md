@@ -5,7 +5,7 @@ Rules and commands are in `CLAUDE.md`. Update this file when something below cha
 
 ## Live now
 
-- Repo `robd-hub/agent-parrot`, default branch `main`. `npm test`: 36 tests, all passing.
+- Repo `robd-hub/agent-parrot`, default branch `main`. `npm test`: 39 tests, all passing.
 - Vercel project `agent-parrot` (team designimp-projects, Hobby plan), linked to the repo, deploys `main`
   automatically: https://agent-parrot.vercel.app. Behind Vercel's login until a custom domain is added,
   so the public can't see it yet.
@@ -27,6 +27,12 @@ Rules and commands are in `CLAUDE.md`. Update this file when something below cha
 | #8 | Light by default (dark only when someone clicks the moon, never from the device setting); `/news` split by day under Today / Yesterday / date headings |
 | #10 | Key details on every agent page (maker, links, first listed, how to connect, model, pricing), pages for each `/listed` agent and maker, maker reputation score (`src/makers.js`) |
 | #11 | Health checks (`src/health.js`): each listed agent visited at most once a day; Up/Down, response time, uptime % and tools on pages; "only agents that answered" filter; uptime in maker reputation. Cut to twice a day (01:00, 13:00 UTC) to save free-plan use |
+
+## In review
+
+- Grade history and security flags (branch `claude/grade-history-security`): a score-over-time chart on each
+  tested agent's page (from every past run in Agent Report Card), and a Security section on agent pages (HTTPS,
+  key, payment, tool powers). Only Coder and Cheap First have more than one run so far.
 
 ## Waiting on Rob
 

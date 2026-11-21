@@ -29,8 +29,16 @@ const list = [];
 for (const a of agents) {
   const file = path.join(dir, 'results', `${a.id}.json`);
   if (!fs.existsSync(file)) continue;
-  const run = JSON.parse(fs.readFileSync(file, 'utf8')).runs.at(-1);
+  const runs = JSON.parse(fs.readFileSync(file, 'utf8')).runs;
+  const run = runs.at(-1);
   if (!run) continue;
+  // Every past run's score, oldest first, for the grade history chart. Scored the same way as the latest run.
+  const history = runs.map((r) => {
+    const raws = r.tasks.map(taskScore).filter((x) => x !== null);
+    if (!raws.length) return null;
+    const sc = Math.round(raws.reduce((n, x) => n + x, 0) / raws.length);
+    return { date: r.date, score: sc, grade: letter(sc), provisional: r.tasks.some((t) => t.reppo?.status !== 'done') };
+  }).filter(Boolean);
   const tasks = run.tasks.map((t) => {
     const s = taskScore(t);
     return {
@@ -52,6 +60,7 @@ for (const a of agents) {
     // How Agent Report Card reached it, and the AI model when the grader knows it. Shown in the agent's key details.
     adapter: a.adapter || null, marketplaceId: a.marketplaceId ?? null, model: a.model || null,
     ownAgent: Boolean(a.selfGraded), concordiumBadge: a.concordiumBadge || null,
+    history,
     gradedAt: run.date, score, grade: letter(score),
     provisional: run.tasks.some((t) => t.reppo?.status !== 'done'),
     honesty: !honestyTasks.length ? null : honestyTasks.some((t) => t.score !== null && t.score < 70) ? 'failed' : 'passed',

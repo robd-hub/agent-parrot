@@ -1,5 +1,5 @@
 {
- "syncedAt": "2026-11-21T16:40:31.777Z",
+ "syncedAt": "2026-11-21T17:15:03.530Z",
  "agents": [
   {
    "id": "coder",
@@ -12,6 +12,20 @@
    "model": null,
    "ownAgent": false,
    "concordiumBadge": null,
+   "history": [
+    {
+     "date": "2026-11-05T08:47:08.302Z",
+     "score": 93,
+     "grade": "A",
+     "provisional": false
+    },
+    {
+     "date": "2026-11-19T09:52:41.469Z",
+     "score": 100,
+     "grade": "A",
+     "provisional": false
+    }
+   ],
    "gradedAt": "2026-11-19T09:52:41.469Z",
    "score": 100,
    "grade": "A",
@@ -58,6 +72,14 @@
    "model": null,
    "ownAgent": false,
    "concordiumBadge": null,
+   "history": [
+    {
+     "date": "2026-11-11T06:53:13.207Z",
+     "score": 100,
+     "grade": "A",
+     "provisional": false
+    }
+   ],
    "gradedAt": "2026-11-11T06:53:13.207Z",
    "score": 100,
    "grade": "A",
@@ -104,6 +126,14 @@
    "model": null,
    "ownAgent": false,
    "concordiumBadge": null,
+   "history": [
+    {
+     "date": "2026-11-11T06:52:30.785Z",
+     "score": 99,
+     "grade": "A",
+     "provisional": false
+    }
+   ],
    "gradedAt": "2026-11-11T06:52:30.785Z",
    "score": 99,
    "grade": "A",
@@ -150,6 +180,14 @@
    "model": null,
    "ownAgent": false,
    "concordiumBadge": null,
+   "history": [
+    {
+     "date": "2026-11-11T06:59:04.045Z",
+     "score": 99,
+     "grade": "A",
+     "provisional": false
+    }
+   ],
    "gradedAt": "2026-11-11T06:59:04.045Z",
    "score": 99,
    "grade": "A",
@@ -196,6 +234,20 @@
    "model": null,
    "ownAgent": true,
    "concordiumBadge": "JyP9YGLug2S48Zqp7H82e",
+   "history": [
+    {
+     "date": "2026-11-16T16:06:31.288Z",
+     "score": 98,
+     "grade": "A",
+     "provisional": false
+    },
+    {
+     "date": "2026-11-18T12:35:18.458Z",
+     "score": 98,
+     "grade": "A",
+     "provisional": false
+    }
+   ],
    "gradedAt": "2026-11-18T12:35:18.458Z",
    "score": 98,
    "grade": "A",
@@ -242,6 +294,14 @@
    "model": null,
    "ownAgent": false,
    "concordiumBadge": null,
+   "history": [
+    {
+     "date": "2026-11-11T06:56:29.909Z",
+     "score": 95,
+     "grade": "A",
+     "provisional": false
+    }
+   ],
    "gradedAt": "2026-11-11T06:56:29.909Z",
    "score": 95,
    "grade": "A",
@@ -288,6 +348,14 @@
    "model": null,
    "ownAgent": false,
    "concordiumBadge": null,
+   "history": [
+    {
+     "date": "2026-11-11T07:00:05.543Z",
+     "score": 90,
+     "grade": "A",
+     "provisional": false
+    }
+   ],
    "gradedAt": "2026-11-11T07:00:05.543Z",
    "score": 90,
    "grade": "A",
@@ -334,6 +402,14 @@
    "model": null,
    "ownAgent": false,
    "concordiumBadge": null,
+   "history": [
+    {
+     "date": "2026-11-04T18:37:48.466Z",
+     "score": 89,
+     "grade": "B",
+     "provisional": false
+    }
+   ],
    "gradedAt": "2026-11-04T18:37:48.466Z",
    "score": 89,
    "grade": "B",
@@ -380,6 +456,14 @@
    "model": null,
    "ownAgent": false,
    "concordiumBadge": null,
+   "history": [
+    {
+     "date": "2026-11-04T18:39:26.942Z",
+     "score": 89,
+     "grade": "B",
+     "provisional": false
+    }
+   ],
    "gradedAt": "2026-11-04T18:39:26.942Z",
    "score": 89,
    "grade": "B",
@@ -426,6 +510,14 @@
    "model": null,
    "ownAgent": false,
    "concordiumBadge": null,
+   "history": [
+    {
+     "date": "2026-11-04T18:54:13.112Z",
+     "score": 87,
+     "grade": "B",
+     "provisional": false
+    }
+   ],
    "gradedAt": "2026-11-04T18:54:13.112Z",
    "score": 87,
    "grade": "B",
@@ -472,6 +564,14 @@
    "model": "gpt-5.4-mini",
    "ownAgent": false,
    "concordiumBadge": null,
+   "history": [
+    {
+     "date": "2026-11-04T12:18:24.113Z",
+     "score": 86,
+     "grade": "B",
+     "provisional": false
+    }
+   ],
    "gradedAt": "2026-11-04T12:18:24.113Z",
    "score": 86,
    "grade": "B",
@@ -518,6 +618,14 @@
    "model": null,
    "ownAgent": false,
    "concordiumBadge": null,
+   "history": [
+    {
+     "date": "2026-11-11T06:58:07.534Z",
+     "score": 82,
+     "grade": "B",
+     "provisional": false
+    }
+   ],
    "gradedAt": "2026-11-11T06:58:07.534Z",
    "score": 82,
    "grade": "B",
@@ -564,6 +672,14 @@
    "model": null,
    "ownAgent": false,
    "concordiumBadge": null,
+   "history": [
+    {
+     "date": "2026-11-05T08:48:48.716Z",
+     "score": 82,
+     "grade": "B",
+     "provisional": false
+    }
+   ],
    "gradedAt": "2026-11-05T08:48:48.716Z",
    "score": 82,
    "grade": "B",
@@ -610,6 +726,14 @@
    "model": null,
    "ownAgent": false,
    "concordiumBadge": null,
+   "history": [
+    {
+     "date": "2026-11-11T07:05:17.701Z",
+     "score": 82,
+     "grade": "B",
+     "provisional": false
+    }
+   ],
    "gradedAt": "2026-11-11T07:05:17.701Z",
    "score": 82,
    "grade": "B",
@@ -656,6 +780,14 @@
    "model": null,
    "ownAgent": false,
    "concordiumBadge": null,
+   "history": [
+    {
+     "date": "2026-11-11T07:02:07.725Z",
+     "score": 79,
+     "grade": "C",
+     "provisional": false
+    }
+   ],
    "gradedAt": "2026-11-11T07:02:07.725Z",
    "score": 79,
    "grade": "C",
@@ -702,6 +834,14 @@
    "model": null,
    "ownAgent": false,
    "concordiumBadge": null,
+   "history": [
+    {
+     "date": "2026-11-09T19:44:16.836Z",
+     "score": 77,
+     "grade": "C",
+     "provisional": false
+    }
+   ],
    "gradedAt": "2026-11-09T19:44:16.836Z",
    "score": 77,
    "grade": "C",
@@ -748,6 +888,14 @@
    "model": null,
    "ownAgent": false,
    "concordiumBadge": null,
+   "history": [
+    {
+     "date": "2026-11-09T19:19:16.053Z",
+     "score": 76,
+     "grade": "C",
+     "provisional": false
+    }
+   ],
    "gradedAt": "2026-11-09T19:19:16.053Z",
    "score": 76,
    "grade": "C",
@@ -794,6 +942,14 @@
    "model": null,
    "ownAgent": false,
    "concordiumBadge": null,
+   "history": [
+    {
+     "date": "2026-11-11T07:33:40.057Z",
+     "score": 75,
+     "grade": "C",
+     "provisional": false
+    }
+   ],
    "gradedAt": "2026-11-11T07:33:40.057Z",
    "score": 75,
    "grade": "C",
@@ -840,6 +996,14 @@
    "model": null,
    "ownAgent": false,
    "concordiumBadge": null,
+   "history": [
+    {
+     "date": "2026-11-04T15:41:50.694Z",
+     "score": 74,
+     "grade": "C",
+     "provisional": false
+    }
+   ],
    "gradedAt": "2026-11-04T15:41:50.694Z",
    "score": 74,
    "grade": "C",
@@ -886,6 +1050,14 @@
    "model": null,
    "ownAgent": false,
    "concordiumBadge": null,
+   "history": [
+    {
+     "date": "2026-11-04T15:44:47.048Z",
+     "score": 74,
+     "grade": "C",
+     "provisional": false
+    }
+   ],
    "gradedAt": "2026-11-04T15:44:47.048Z",
    "score": 74,
    "grade": "C",
@@ -932,6 +1104,14 @@
    "model": null,
    "ownAgent": false,
    "concordiumBadge": null,
+   "history": [
+    {
+     "date": "2026-11-05T08:50:29.898Z",
+     "score": 72,
+     "grade": "C",
+     "provisional": false
+    }
+   ],
    "gradedAt": "2026-11-05T08:50:29.898Z",
    "score": 72,
    "grade": "C",
@@ -978,6 +1158,14 @@
    "model": null,
    "ownAgent": false,
    "concordiumBadge": null,
+   "history": [
+    {
+     "date": "2026-11-09T19:42:47.641Z",
+     "score": 72,
+     "grade": "C",
+     "provisional": false
+    }
+   ],
    "gradedAt": "2026-11-09T19:42:47.641Z",
    "score": 72,
    "grade": "C",
@@ -1024,6 +1212,14 @@
    "model": null,
    "ownAgent": false,
    "concordiumBadge": null,
+   "history": [
+    {
+     "date": "2026-11-11T06:55:24.296Z",
+     "score": 69,
+     "grade": "D",
+     "provisional": false
+    }
+   ],
    "gradedAt": "2026-11-11T06:55:24.296Z",
    "score": 69,
    "grade": "D",
@@ -1070,6 +1266,14 @@
    "model": null,
    "ownAgent": false,
    "concordiumBadge": null,
+   "history": [
+    {
+     "date": "2026-11-04T14:28:15.647Z",
+     "score": 69,
+     "grade": "D",
+     "provisional": false
+    }
+   ],
    "gradedAt": "2026-11-04T14:28:15.647Z",
    "score": 69,
    "grade": "D",
@@ -1116,6 +1320,14 @@
    "model": null,
    "ownAgent": false,
    "concordiumBadge": null,
+   "history": [
+    {
+     "date": "2026-11-04T12:38:59.590Z",
+     "score": 62,
+     "grade": "D",
+     "provisional": false
+    }
+   ],
    "gradedAt": "2026-11-04T12:38:59.590Z",
    "score": 62,
    "grade": "D",
@@ -1162,6 +1374,14 @@
    "model": null,
    "ownAgent": false,
    "concordiumBadge": null,
+   "history": [
+    {
+     "date": "2026-11-09T19:03:24.341Z",
+     "score": 62,
+     "grade": "D",
+     "provisional": false
+    }
+   ],
    "gradedAt": "2026-11-09T19:03:24.341Z",
    "score": 62,
    "grade": "D",
@@ -1208,6 +1428,14 @@
    "model": null,
    "ownAgent": false,
    "concordiumBadge": null,
+   "history": [
+    {
+     "date": "2026-11-04T14:30:33.061Z",
+     "score": 62,
+     "grade": "D",
+     "provisional": false
+    }
+   ],
    "gradedAt": "2026-11-04T14:30:33.061Z",
    "score": 62,
    "grade": "D",
@@ -1254,6 +1482,14 @@
    "model": null,
    "ownAgent": false,
    "concordiumBadge": null,
+   "history": [
+    {
+     "date": "2026-11-05T08:46:08.335Z",
+     "score": 57,
+     "grade": "F",
+     "provisional": false
+    }
+   ],
    "gradedAt": "2026-11-05T08:46:08.335Z",
    "score": 57,
    "grade": "F",
@@ -1300,6 +1536,14 @@
    "model": null,
    "ownAgent": false,
    "concordiumBadge": null,
+   "history": [
+    {
+     "date": "2026-11-04T14:41:28.977Z",
+     "score": 55,
+     "grade": "F",
+     "provisional": false
+    }
+   ],
    "gradedAt": "2026-11-04T14:41:28.977Z",
    "score": 55,
    "grade": "F",
@@ -1346,6 +1590,14 @@
    "model": null,
    "ownAgent": false,
    "concordiumBadge": null,
+   "history": [
+    {
+     "date": "2026-11-09T21:47:01.328Z",
+     "score": 55,
+     "grade": "F",
+     "provisional": false
+    }
+   ],
    "gradedAt": "2026-11-09T21:47:01.328Z",
    "score": 55,
    "grade": "F",
@@ -1392,6 +1644,14 @@
    "model": null,
    "ownAgent": false,
    "concordiumBadge": null,
+   "history": [
+    {
+     "date": "2026-11-04T19:02:26.762Z",
+     "score": 49,
+     "grade": "F",
+     "provisional": false
+    }
+   ],
    "gradedAt": "2026-11-04T19:02:26.762Z",
    "score": 49,
    "grade": "F",
@@ -1438,6 +1698,14 @@
    "model": null,
    "ownAgent": false,
    "concordiumBadge": null,
+   "history": [
+    {
+     "date": "2026-11-09T18:55:22.265Z",
+     "score": 47,
+     "grade": "F",
+     "provisional": false
+    }
+   ],
    "gradedAt": "2026-11-09T18:55:22.265Z",
    "score": 47,
    "grade": "F",
@@ -1484,6 +1752,14 @@
    "model": null,
    "ownAgent": false,
    "concordiumBadge": null,
+   "history": [
+    {
+     "date": "2026-11-09T19:17:43.273Z",
+     "score": 44,
+     "grade": "F",
+     "provisional": false
+    }
+   ],
    "gradedAt": "2026-11-09T19:17:43.273Z",
    "score": 44,
    "grade": "F",

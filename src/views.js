@@ -302,6 +302,35 @@ export function directoryPage({ agents, listings, category, notice, error, signe
     </section>`, { description: 'AI agents, tested. Every agent in the Agent Parrot directory has a grade from real tasks and two independent judges.' });
 }
 
+// Grade history: every Polly Test run's Squawk Score over time, like a price chart. Drawn as inline SVG.
+export function historyBlock(agent) {
+  const h = (agent.history ?? []).filter((x) => Number.isFinite(x.score));
+  if (!h.length) return '';
+  const W = 640, H = 230, L = 40, R = 24, T = 30, B = 34;
+  const times = h.map((x) => new Date(x.date).getTime());
+  const t0 = Math.min(...times), t1 = Math.max(...times);
+  const x = (t) => (t1 === t0 ? (L + W - R) / 2 : L + ((t - t0) / (t1 - t0)) * (W - L - R));
+  const lo = Math.max(0, Math.min(50, Math.floor((Math.min(...h.map((p) => p.score)) - 10) / 10) * 10));
+  const y = (v) => T + (1 - (v - lo) / (100 - lo)) * (H - T - B);
+  const bands = [[90, 'A'], [80, 'B'], [70, 'C'], [60, 'D']].filter(([v]) => v > lo);
+  const pts = h.map((p, i) => [x(times[i]), y(p.score)]);
+  const first = h[0], last = h.at(-1);
+  const change = h.length > 1 ? last.score - first.score : null;
+  const summary = h.length === 1 ? `Tested once so far, on ${dateLabel(last.date)}.`
+    : `${h.length} tests since ${dateLabel(first.date)}. ${change === 0 ? 'Same score as the first test.' : `${change > 0 ? 'Up' : 'Down'} ${Math.abs(change)} ${Math.abs(change) === 1 ? 'point' : 'points'} since the first test.`}`;
+  return `<section class="card section"><h2>Grade history</h2>
+    <p class="muted">${esc(summary)}</p>
+    <svg class="history-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Squawk Score over time: ${esc(h.map((p) => `${dateLabel(p.date)} ${p.score}`).join(', '))}">
+      ${bands.map(([v, g]) => `<line class="gridline" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text class="band" x="4" y="${y(v) + 4}">${g} ${v}</text>`).join('')}
+      ${pts.length > 1 ? `<polyline class="line" points="${pts.map(([a, b]) => `${a.toFixed(1)},${b.toFixed(1)}`).join(' ')}"/>` : ''}
+      ${pts.map(([a, b], i) => `<circle class="dot" cx="${a.toFixed(1)}" cy="${b.toFixed(1)}" r="6"><title>${esc(dateLabel(h[i].date))}: ${Number(h[i].score)} (${esc(h[i].grade)})</title></circle>
+        <text class="label" x="${a.toFixed(1)}" y="${(b - 12).toFixed(1)}" text-anchor="middle">${Number(h[i].score)}</text>
+        <text class="date" x="${a.toFixed(1)}" y="${H - 10}" text-anchor="${pts.length > 1 && i === 0 ? 'start' : pts.length > 1 && i === pts.length - 1 ? 'end' : 'middle'}">${esc(new Date(h[i].date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }))}</text>`).join('')}
+    </svg>
+    ${h.length === 1 ? '<p class="muted small">Each retest adds a point here.</p>' : ''}
+  </section>`;
+}
+
 export function agentPage({ agent, place, total, listed = '', details = '' }) {
   const tasks = agent.tasks.map((t) => `
       <article class="task">
@@ -333,6 +362,7 @@ export function agentPage({ agent, place, total, listed = '', details = '' }) {
         </div>
       </div>
     </section>
+    ${historyBlock(agent)}
     ${details}
     <section class="section">
       <h2>What Polly asked, and how it did</h2>

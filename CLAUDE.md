@@ -26,7 +26,7 @@ Postgres via `pg` on Vercel (Neon), PGlite locally and in tests (`./.data/pg`). 
 ```bash
 npm install         # once
 npm run dev         # http://localhost:3000, reloads on save, reads .env if present
-npm test            # node --test, every file in test/ (58 tests, all should pass)
+npm test            # node --test, every file in test/ (63 tests, all should pass)
 npm run sync-grades # copy grades from ../agent-report-card/data into data/ (both repos side by side)
 npm start           # what Vercel runs
 ```
@@ -68,6 +68,7 @@ npm start           # what Vercel runs
 | `src/compare.js`, `src/compare-views.js` | `/compare?a=<ref>&b=<ref>`: two agents side by side. A ref is a tested id (`coder`) or a listed `source:id` (`mcp:com.acme/weather`, `erc8004:8453:7`) |
 | `src/openness.js` | Licence (from the GitHub repo or a confirmed fact) and a short data-privacy note; "not known" otherwise |
 | `src/reviews.js`, `src/review-views.js` | Member reviews and ratings: one per member per agent (tested id or listed `source:id`), rate limits, reports, `/admin/reviews`. Kept apart from grades and the reputation score |
+| `src/agent-reports.js`, `src/agent-report-views.js` | "Report this agent" (scam, broken, misleading, unsafe permissions, other): one open report per member per agent, 5 a day, `/admin/reports` to confirm or dismiss. Only confirmed reports show, as community flags in Security, on `/compare` and as a `/listed` card tag. Never hides an agent |
 | `src/claims.js`, `src/claim-views.js` | Claim your listing: `/claim?ref=<ref>` (prove ownership by GitHub sign-in or a code in a file), the "Claimed by its maker" tick, the free basic check, the badge `/badge.svg?ref=<ref>`, `/admin/claims`. Never changes a grade |
 | `data/agent-facts.json` | Hand-kept facts the grade data lacks (maker, website, pricing). Only confirmed facts; leave blanks blank |
 | `src/feed.js` | Public grades feed: `/api/grades.json`, `/api/grades/<id>.json`, `/api/grades/lookup`, and the `/feed` page |

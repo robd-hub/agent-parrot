@@ -256,6 +256,7 @@ export async function syncDirectories({ db, config, fetchFn = fetch, budgetMs = 
   }
   // Reviews left on a listing that is now one of our tested agents move to that agent's page.
   await db.reviews?.adopt?.();
+  await db.agentReports?.adopt?.();
   return report;
 }
 

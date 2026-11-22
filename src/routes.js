@@ -22,6 +22,8 @@ import { reputationFor } from './directory-routes.js';
 import { testedDetails } from './makers.js';
 import { reviewRoutes, reviewSection } from './reviews.js';
 import { reviewsBlock, ratingFact, noticeFor } from './review-views.js';
+import { agentReportRoutes, reportSection } from './agent-reports.js';
+import { reportNoticeFor } from './agent-report-views.js';
 import { claimRoutes, claimInfo, claimsForMember } from './claims.js';
 import { claimTag, memberClaimsBlock } from './claim-views.js';
 
@@ -148,8 +150,13 @@ export function createRoutes({
     const rows = await db.listed.forTested(agent.id);
     const listed = listedOnBlock(listedOn(agent, rows));
     const d = testedDetails(agent, rows);
-    const details = testedDetailsBlock(d, { gradedAt: agent.gradedAt, rows, rep: (await reputationFor(db, d.makerKey))?.rep });
-    const reviews = await reviewSection(db, { agent: { ref: agent.id, name: agent.name, makerKey: d.makerKey }, member: await memberOf(req), notice: noticeFor(req.query.review) });
+    const member = await memberOf(req);
+    const who = { ref: agent.id, name: agent.name, makerKey: d.makerKey };
+    const [reviews, report] = await Promise.all([
+      reviewSection(db, { agent: who, member, notice: noticeFor(req.query.review) }),
+      reportSection(db, { agent: who, member, notice: reportNoticeFor(req.query.report) }),
+    ]);
+    const details = testedDetailsBlock(d, { gradedAt: agent.gradedAt, rows, rep: (await reputationFor(db, d.makerKey))?.rep, report });
     // Signed-in members see their own review form, so their copy of the page is never cached for others.
     res.set('Cache-Control', req.session.uid ? 'private, no-store' : 'public, s-maxage=600, stale-while-revalidate=3600');
     res.send(views.agentPage({ agent, place: order.find((a) => a.id === agent.id).place, total: order.length, listed, details,
@@ -352,6 +359,7 @@ export function createRoutes({
   app.use(feedRoutes({ config }));
   app.use(compareRoutes({ db }));
   app.use(reviewRoutes({ db, adminOnly }));
+  app.use(agentReportRoutes({ db, adminOnly }));
   app.use(claimRoutes({ db, config, adminOnly, fetchFn, lookup }));
 
   app.get('/admin', adminOnly, async (req, res) => {

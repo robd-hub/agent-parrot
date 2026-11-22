@@ -66,6 +66,9 @@ export function createRoutes({
     renewSession(req, res, config.sessionSecret, secure);
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('Referrer-Policy', 'same-origin');
+    // Pages differ for signed-in members (header, review forms), so the CDN keeps a separate copy per cookie.
+    // Signed-out visitors send no session cookie and share one cached copy.
+    res.setHeader('Vary', 'Cookie');
     views.pageContext.run({ signedIn: Boolean(req.session.uid), baseUrl: config.baseUrl, graderUrl: config.graderUrl, path: req.path }, next);
   });
 
@@ -116,14 +119,21 @@ export function createRoutes({
   // ----- Public pages -----
 
   const pickCategory = (v) => (CATEGORIES.some((c) => c.id === v) ? v : '');
+  // Signed-out visitors all see the same page, so the CDN can serve it for a few minutes without asking the database.
+  const cacheIfSignedOut = (req, res, seconds = 300) =>
+    res.set('Cache-Control', req.session.uid ? 'private, no-store' : `public, s-maxage=${seconds}, stale-while-revalidate=3600`);
 
   app.get('/', async (req, res) => {
     const member = await memberOf(req);
     const inviter = !member && req.track.ref ? await db.invites.byCode(req.track.ref) : null;
+    const [memberCount, counts, stories] = await Promise.all([db.count(), db.listed.counts().catch(() => []), db.stories.latest()]);
+    if (inviter) res.set('Cache-Control', 'private, no-store');
+    else cacheIfSignedOut(req, res);
     res.send(views.homePage({
-      member, memberCount: await db.count(), stats: { ...stats(), top3: peckingOrder().slice(0, 3) },
+      member, memberCount, stats: { ...stats(), top3: peckingOrder().slice(0, 3) },
+      listedCount: counts.reduce((n, c) => n + Number(c.untested || 0), 0),
       rows: peckingOrder(pickCategory(req.query.category)), category: pickCategory(req.query.category),
-      honestyFails: allAgents().filter((a) => a.honesty === 'failed'), makers: agentById('cheap-first'), stories: await db.stories.latest(),
+      honestyFails: allAgents().filter((a) => a.honesty === 'failed'), makers: agentById('cheap-first'), stories,
       articles: ARTICLES.slice(0, 3), gameNo: gameNumber(today()), providers: signInOptions(), emailLogin: Boolean(sendEmail), inviter,
       error: req.query.error === 'cancelled' ? 'Sign-in was cancelled. You can try again.' : null,
     }));
@@ -136,6 +146,8 @@ export function createRoutes({
     const makerOf = Object.fromEntries(agents.map((a) => [a.id, factsFor(a.id).maker?.key]));
     const [ratings, byMaker] = await Promise.all([db.reviews.summaries(agents.map((a) => a.id)), makerRatings(db, Object.values(makerOf))]);
     const makerRatingsById = Object.fromEntries(agents.map((a) => [a.id, byMaker[makerOf[a.id]]]));
+    if (status === 200 && !extra.notice) cacheIfSignedOut(req, res);
+    else res.set('Cache-Control', 'private, no-store');
     res.status(status).send(views.directoryPage({ agents, listings, ratings, makerRatings: makerRatingsById, category, signedIn: Boolean(req.session.uid), ...extra }));
   };
   app.get('/agents', (req, res) => directory(req, res, { notice: req.query.thanks ? "Thanks! Polly will take a look at it." : null }));
@@ -173,6 +185,7 @@ export function createRoutes({
 
   app.get('/pecking-order', (req, res) => {
     const category = pickCategory(req.query.category);
+    cacheIfSignedOut(req, res);
     res.send(views.peckingOrderPage({ rows: peckingOrder(category || undefined), category }));
   });
 

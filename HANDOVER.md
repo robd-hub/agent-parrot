@@ -5,7 +5,7 @@ Rules and commands are in `CLAUDE.md`. Update this file when something below cha
 
 ## Live now
 
-- Repo `robd-hub/agent-parrot`, default branch `main`. `npm test`: 76 tests, all passing.
+- Repo `robd-hub/agent-parrot`, default branch `main`. `npm test`: 85 tests, all passing.
 - Vercel project `agent-parrot` (team designimp-projects, Hobby plan), linked to the repo, deploys `main`
   automatically: https://agent-parrot.vercel.app. Behind Vercel's login until a custom domain is added,
   so the public can't see it yet.
@@ -36,6 +36,13 @@ Rules and commands are in `CLAUDE.md`. Update this file when something below cha
 | #17 | Weekly top-movers digest (`src/digest.js`, `src/digest-views.js`): biggest grade climbs and drops, first Polly Tests, agents that went quiet or came back (health), member reviews, new directory listings, top 3. Built Mondays 07:00 UTC and kept per week (`digests` table); earlier weeks are filled in from grade history (no health for those). Public `/digest` and `/digest/<monday>`; `/admin/digest` has the ready-to-post LinkedIn text with a copy button. Rob posts it himself, nothing is auto-posted |
 | #13 | Grade history chart on each tested agent's page (every past Agent Report Card run) and a Security section (HTTPS, key, payment, tool powers) |
 | #22 | Request a Polly Test on our own page, `/request`: form sent to the grader's `POST /api/request/`, wallet button for USDC on Base, card via the grader's Stripe link, a status page per request (`/request/<id>`), "Test this agent" buttons everywhere |
+
+## In review
+
+- Free Lite Check (branch `claude/lite-check`, with grader PR robd-hub/agent-report-card#58). Scoping doc:
+  https://claude.ai/artifact/URF1ntgeCiDFo3yKhDza1b. `/admin/lite` lets Rob run checks; members can't until he ticks
+  "Open to members". Needs `LITE_SECRET` (same value) in both Vercel projects. Not built yet: the public "Lite checked"
+  badge on claimed listings, and "Free Lite Check" buttons on `/listed` and agent pages (step 4, needs Rob's OK).
 
 ## Waiting on Rob
 

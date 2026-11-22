@@ -26,8 +26,10 @@ import { reviewsBlock, ratingFact, noticeFor } from './review-views.js';
 import { agentReportRoutes, reportSection } from './agent-reports.js';
 import { reportNoticeFor } from './agent-report-views.js';
 import { claimRoutes, claimInfo, claimsForMember } from './claims.js';
+import { findingsRoutes } from './findings.js';
 import { claimTag, memberClaimsBlock } from './claim-views.js';
 import { testRequestRoutes, myRequestsBlock } from './test-requests.js';
+import { liteCheckRoutes, myLiteBlock } from './lite-checks.js';
 
 // A complete app around the routes, used by tests.
 export function createApp(options) {
@@ -336,7 +338,7 @@ export function createRoutes({
   app.get('/me', signedIn, joined, async (req, res) => {
     const [inviteCode, invited, streak, claims] = await Promise.all([db.invites.codeFor(req.member.id), db.invites.count(req.member.id), db.game.streak(req.member.id, today()), claimsForMember(db, req.member)]);
     res.set('Cache-Control', 'private, no-store');
-    res.send(views.mePage({ member: req.member, inviteCode, invited, streak, claims: memberClaimsBlock(claims) + myRequestsBlock(await db.testRequests.mine(req.member.id)) }));
+    res.send(views.mePage({ member: req.member, inviteCode, invited, streak, claims: memberClaimsBlock(claims) + myRequestsBlock(await db.testRequests.mine(req.member.id)) + myLiteBlock(await db.liteChecks.mine(req.member.id)) }));
   });
 
   app.post('/remove', signedIn, async (req, res) => {
@@ -367,8 +369,10 @@ export function createRoutes({
   app.use(reviewRoutes({ db, adminOnly }));
   app.use(agentReportRoutes({ db, adminOnly }));
   app.use(claimRoutes({ db, config, adminOnly, fetchFn, lookup }));
+  app.use(findingsRoutes({ db, adminOnly }));
   app.use(digestRoutes({ db, config, adminOnly, now }));
   app.use(testRequestRoutes({ db, config, fetchFn, now }));
+  app.use(liteCheckRoutes({ db, config, adminOnly, fetchFn, now }));
 
   app.get('/admin', adminOnly, async (req, res) => {
     res.set('Cache-Control', 'private, no-store');
@@ -445,7 +449,7 @@ export function createRoutes({
 
   app.get('/robots.txt', (req, res) => {
     res.type('text/plain').send(['User-agent: *',
-      ...['/admin', '/auth', '/api', '/join', '/me', '/signin', '/signup', '/logout', '/remove', '/claim'].map((p) => `Disallow: ${p}`),
+      ...['/admin', '/auth', '/api', '/join', '/me', '/signin', '/signup', '/logout', '/remove', '/claim', '/lite/'].map((p) => `Disallow: ${p}`),
       '', `Sitemap: ${config.baseUrl}/sitemap.xml`, ''].join('\n'));
   });
 

@@ -534,3 +534,15 @@ code.wrap { overflow-wrap: anywhere; word-break: break-all; }
 .rq-step.done b { color: var(--green); }
 .rq-step.now b { color: var(--ink); }
 .rq-step:not(.done):not(.now) b { color: var(--muted); }
+
+/* Lite Check result (src/lite-check-views.js) */
+.pill { display: inline-block; padding: 2px 10px; border-radius: 999px; border: 1px solid currentColor; font-size: .95em; }
+.pill.good { color: var(--green); }
+.pill.warn { color: color-mix(in srgb, var(--yellow) 70%, var(--ink)); }
+.pill.bad { color: var(--red); }
+.lite-mark { display: inline-block; width: 1.4em; text-align: center; font-weight: 700; }
+.lite-pass { color: var(--green); }
+.lite-warn { color: color-mix(in srgb, var(--yellow) 70%, var(--ink)); }
+.lite-fail { color: var(--red); }
+a.button { display: inline-block; padding: 10px 16px; border-radius: var(--radius-sm); background: var(--green); color: #fff; text-decoration: none; font-weight: 600; }
+.lite-list { list-style: none; padding-left: 0; } .lite-list li { margin: 6px 0; }

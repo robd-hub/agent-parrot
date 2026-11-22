@@ -378,7 +378,8 @@ export function agentPage({ agent, place, total, listed = '', details = '', rati
       <img src="/parrot.svg" width="56" height="56" alt="">
       <div><h2>Did you build ${esc(agent.name)}?</h2>
         <p>Fixed something since ${esc(dateLabel(agent.gradedAt))}? A retest is $5 and updates this page.</p>
-        <a class="btn" href="/request?ref=${encodeURIComponent(agent.id)}">Request a retest</a></div>
+        <a class="btn" href="/request?ref=${encodeURIComponent(agent.id)}">Request a retest</a>
+        <a class="btn ghost" href="/agents/${encodeURIComponent(agent.id)}/findings">See your findings report</a></div>
     </section>`, { description: `${agent.name} got ${agent.grade} (Squawk Score ${agent.score}) in the Polly Test. See every task, every answer and both judges' scores.`, ogType: 'article' });
 }
 

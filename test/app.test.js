@@ -316,7 +316,8 @@ test('signed-out visitors get cached pages; signed-in members never do', async (
   for (const p of ['/', '/agents', '/agents?category=writing', '/pecking-order']) {
     const r = await s.req(p);
     assert.match(r.headers.get('cache-control'), /^public, s-maxage=\d+/, p);
-    assert.match(r.headers.get('vary') ?? '', /Cookie/, p);
+    // No Vary: Cookie. Vercel's CDN stops caching anything that varies on cookies.
+    assert.doesNotMatch(r.headers.get('vary') ?? '', /Cookie/i, p);
   }
   const go = await s.req('/auth/github');
   await s.req(`/auth/github/callback?code=abc&state=${new URL(go.location).searchParams.get('state')}`);

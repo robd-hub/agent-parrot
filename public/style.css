@@ -477,3 +477,15 @@ th { font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; color:
 .review-report { margin-top: 6px; font-size: .82rem; color: var(--muted); }
 .review-report summary { cursor: pointer; }
 .review-report form { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+
+/* A maker's agents' reviews together (maker pages, agent pages, cards) */
+#maker-reviews { scroll-margin-top: 90px; }
+.maker-reviews-top { display: flex; gap: 28px; align-items: center; flex-wrap: wrap; margin: 12px 0 8px; }
+.maker-reviews-top .review-summary { margin: 0; }
+.dist { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; min-width: 200px; flex: 1; max-width: 320px; }
+.dist li { display: grid; grid-template-columns: 2.4em 1fr 2.4em; align-items: center; gap: 8px; font-size: .85rem; }
+.dist-bar { height: 8px; border-radius: 99px; background: var(--surface-2); overflow: hidden; }
+.dist-bar span { display: block; height: 100%; background: var(--yellow); border-radius: 99px; }
+.dist-n { color: var(--muted); text-align: right; }
+.maker-rating { margin: 10px 0 0; }
+.tag-maker-rating { border: 1px dashed var(--line); background: transparent; }

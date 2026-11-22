@@ -1,6 +1,6 @@
 // Pages for agents pulled in from other directories (src/directories.js).
 import { esc, layout, dateLabel, gradeBadge } from './views.js';
-import { ratingTag, ratingFact, reviewsBlock, makerReviewsLine } from './review-views.js';
+import { ratingTag, ratingFact, reviewsBlock, makerReviewsBlock, makerRatingLine, makerRatingTag } from './review-views.js';
 import { SOURCES, EXPLORERS } from './directories.js';
 import { MAKER_KINDS, makerPath } from './makers.js';
 import { securityFlags, cardFlags, toolPowers, POWERS } from './security.js';
@@ -115,7 +115,7 @@ export function reputationBlock(rep, { compact = false, path } = {}) {
 }
 
 // Key details for a tested agent (from src/makers.js testedDetails).
-export function testedDetailsBlock(d, { gradedAt, rep, rows = [] } = {}) {
+export function testedDetailsBlock(d, { gradedAt, rep, rows = [], makerRating = null } = {}) {
   const checked = mainRow(rows);
   const openserv = Boolean(d.connection?.startsWith('OpenServ'));
   const licence = licenceInfo({ row: checked ?? rows.find((r) => r.details?.repo), facts: d.facts, openserv });
@@ -136,7 +136,7 @@ export function testedDetailsBlock(d, { gradedAt, rep, rows = [] } = {}) {
       ...opennessRows(licence, privacy),
     ])}
     ${d.note ? `<p class="muted small">${esc(d.note)}</p>` : ''}
-    ${rep ? reputationBlock(rep, { compact: true, path: makerPath(d.makerKey) }) : ''}
+    ${rep ? reputationBlock(rep, { compact: true, path: makerPath(d.makerKey) }) + makerRatingLine(makerRating, makerPath(d.makerKey)) : ''}
   </section>
   ${checked ? securityBlock(checked) + toolsBlock(checked)
     : `<section class="card section"><h2>Security</h2><p class="muted">${d.connection?.startsWith('OpenServ') ? 'Reached through the OpenServ marketplace, which handles access and payment, so there is no public address of its own to check.' : 'No public address listed yet, so nothing to check.'}</p></section>`}`;
@@ -147,7 +147,7 @@ export { PER_PAGE };
 
 const sourceTag = (r) => `<span class="tag">${esc(r.source === 'erc8004' ? `ERC-8004${r.chain ? ` · ${r.chain}` : ''}` : 'MCP Registry')}</span>`;
 
-function listedCard(r, makerCounts = {}, rating = null) {
+function listedCard(r, makerCounts = {}, rating = null, makerRating = null) {
   const link = listedPath(r);
   const others = (makerCounts[r.maker_key] ?? 0) - 1;
   // Builders order a test on Agent Report Card with the address Polly should call.
@@ -157,13 +157,13 @@ function listedCard(r, makerCounts = {}, rating = null) {
       <span class="agent-main"><strong><a href="${esc(link)}">${esc(r.name)}</a></strong>
         <span class="muted small">${r.maker_name ? `by ${makerPath(r.maker_key) ? `<a href="${esc(makerPath(r.maker_key))}">${esc(r.maker_name)}</a>` : esc(r.maker_name)}${others > 0 ? ` (+${others.toLocaleString('en-GB')} more)` : ''}` : r.source === 'mcp' ? esc(r.source_id) : `Agent #${esc(r.source_id.split(':')[1])}`} · not Polly Tested yet</span>
         ${r.description ? `<span class="agent-desc">${esc(r.description)}</span>` : ''}</span>
-      <span class="agent-tags">${ratingTag(rating)}${healthTag(r)}${toolsOf(r)?.length ? `<span class="tag">${toolsOf(r).length}${r.health?.toolsMore ? '+' : ''} ${r.source === 'erc8004' && !r.details?.mcp ? 'skills' : 'tools'}</span>` : ''}${shortPrice(r) ? `<span class="tag">${esc(shortPrice(r))}</span>` : ''}${cardFlags(r).map((f) => `<span class="tag ${f.level === 'bad' ? 'tag-fail' : 'tag-mid'}">${esc(f.text)}</span>`).join('')}${sourceTag(r)}${r.x402 ? '<span class="tag">x402</span>' : ''}
+      <span class="agent-tags">${ratingTag(rating)}${makerRatingTag(makerRating)}${healthTag(r)}${toolsOf(r)?.length ? `<span class="tag">${toolsOf(r).length}${r.health?.toolsMore ? '+' : ''} ${r.source === 'erc8004' && !r.details?.mcp ? 'skills' : 'tools'}</span>` : ''}${shortPrice(r) ? `<span class="tag">${esc(shortPrice(r))}</span>` : ''}${cardFlags(r).map((f) => `<span class="tag ${f.level === 'bad' ? 'tag-fail' : 'tag-mid'}">${esc(f.text)}</span>`).join('')}${sourceTag(r)}${r.x402 ? '<span class="tag">x402</span>' : ''}
         <a class="btn small ghost" href="${esc(compareHref(listedRef(r)))}">Compare</a>
         <a class="btn small" href="/get-polly-tested?agent=${encodeURIComponent(testWith)}">Get it tested</a></span>
     </div>`;
 }
 
-export function listedPage({ rows, total, query, source, live = false, page, counts, makerCounts = {}, ratings = {} }) {
+export function listedPage({ rows, total, query, source, live = false, page, counts, makerCounts = {}, ratings = {}, makerRatings = {} }) {
   const all = counts.reduce((n, c) => n + c.untested, 0);
   const pages = Math.max(1, Math.ceil(total / PER_PAGE));
   const link = (p, s = source, l = live) => {
@@ -194,7 +194,7 @@ export function listedPage({ rows, total, query, source, live = false, page, cou
     </form>
     <p class="small"><a href="/compare">Compare two agents side by side</a> · <a href="${esc(link(1, source, !live))}">${live ? 'Show all agents' : 'Only show agents that answered their last health check'}</a></p>
     <p class="muted small">${total ? `${total.toLocaleString('en-GB')} ${total === 1 ? 'agent' : 'agents'}${query ? ` matching "${esc(query)}"` : ''}${live ? ' that answered their last health check' : ''}. Newest first.` : ''}</p>
-    <div class="agent-list">${rows.map((r) => listedCard(r, makerCounts, ratings[listedRef(r)])).join('') || `<p class="muted">${all ? 'No agents match that search.' : 'Nothing synced yet. Check back tomorrow.'}</p>`}</div>
+    <div class="agent-list">${rows.map((r) => listedCard(r, makerCounts, ratings[listedRef(r)], makerRatings[r.maker_key])).join('') || `<p class="muted">${all ? 'No agents match that search.' : 'Nothing synced yet. Check back tomorrow.'}</p>`}</div>
     ${pages > 1 ? `<nav class="pager" aria-label="Pages">
       ${page > 1 ? `<a class="btn ghost small" href="${esc(link(page - 1))}">Newer</a>` : ''}
       <span class="muted small">Page ${page} of ${pages.toLocaleString('en-GB')}</span>
@@ -247,7 +247,7 @@ export function adminDirectoriesPage({ counts, state, hasGraphKey, hasGithubToke
 }
 
 // One listed agent's page, with everything its directory says about it.
-export function listedAgentPage({ r, rep, more = [], reviews = null }) {
+export function listedAgentPage({ r, rep, more = [], reviews = null, makerRating = null }) {
   const d = r.details ?? {};
   const isMcp = r.source === 'mcp';
   const testWith = r.endpoint || r.url || r.name;
@@ -304,7 +304,7 @@ export function listedAgentPage({ r, rep, more = [], reviews = null }) {
     ${securityBlock(r)}
     ${toolsBlock(r)}
     ${reviews ? reviewsBlock(reviews) : ''}
-    ${rep ? `<section class="card section"><h2>Who made it</h2>${reputationBlock(rep)}
+    ${rep ? `<section class="card section"><h2>Who made it</h2>${reputationBlock(rep, { path: makerPath(r.maker_key) })}${makerRatingLine(makerRating, makerPath(r.maker_key))}
       ${more.length ? `<h3>More from ${esc(r.maker_name)}</h3><ul class="plain-list">${more.map((m) => `<li><a href="${esc(listedPath(m))}">${esc(m.name)}</a></li>`).join('')}</ul>` : ''}</section>` : ''}
     <section class="card cta-card section">
       <img src="/parrot.svg" width="56" height="56" alt="">
@@ -315,7 +315,7 @@ export function listedAgentPage({ r, rep, more = [], reviews = null }) {
 }
 
 // A maker's page: their reputation, their tested agents and everything else they have listed.
-export function makerPage({ key, name, url, rep, tested, listed, total, ratings = {}, memberRating = null }) {
+export function makerPage({ key, name, url, rep, tested, listed, total, ratings = {}, memberRating = null, recentReviews = [] }) {
   const [kindId] = key.split(':');
   const kind = MAKER_KINDS[kindId];
   return layout(`${name}: maker reputation`, `
@@ -325,7 +325,8 @@ export function makerPage({ key, name, url, rep, tested, listed, total, ratings 
       ${url ? `<p>${ext(url, url.replace(/^https?:\/\//, ''))}</p>` : ''}
       ${kindId === 'wallet' ? '<p class="muted small">A wallet shows who controls these registrations, not who they are.</p>' : ''}
     </section>
-    <section class="card section">${reputationBlock(rep)}${memberRating ? `<h3>What members say</h3>${makerReviewsLine(memberRating)}` : ''}</section>
+    <section class="card section">${reputationBlock(rep)}</section>
+    ${makerReviewsBlock({ summary: memberRating, recent: recentReviews, name, names: Object.fromEntries(tested.map((a) => [a.id, a.name])) })}
     <section class="section"><h2>Polly Tested</h2>
       <div class="agent-list">${tested.map((a) => `<a class="agent-card" href="/agents/${esc(a.id)}">${gradeBadge(a.grade)}<span class="agent-main"><strong>${esc(a.name)}</strong>
         <span class="muted small">Squawk Score ${Number(a.score)}</span><span class="agent-desc">${esc(a.description)}</span></span><span class="agent-tags">${ratingTag(ratings[a.id])}</span></a>`).join('') || '<p class="muted">Nothing tested yet.</p>'}</div></section>

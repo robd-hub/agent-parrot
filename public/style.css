@@ -535,7 +535,7 @@ code.wrap { overflow-wrap: anywhere; word-break: break-all; }
 .rq-step.now b { color: var(--ink); }
 .rq-step:not(.done):not(.now) b { color: var(--muted); }
 
-/* Lite Check result (src/lite-check-views.js) */
+/* Polly Peek result (src/lite-check-views.js) */
 .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; border: 1px solid currentColor; font-size: .95em; }
 .pill.good { color: var(--green); }
 .pill.warn { color: color-mix(in srgb, var(--yellow) 70%, var(--ink)); }

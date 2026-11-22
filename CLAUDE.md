@@ -26,7 +26,7 @@ Postgres via `pg` on Vercel (Neon), PGlite locally and in tests (`./.data/pg`). 
 ```bash
 npm install         # once
 npm run dev         # http://localhost:3000, reloads on save, reads .env if present
-npm test            # node --test, every file in test/ (85 tests, all should pass)
+npm test            # node --test, every file in test/ (86 tests, all should pass)
 npm run sync-grades # copy grades from ../agent-report-card/data into data/ (both repos side by side)
 npm start           # what Vercel runs
 ```
@@ -73,7 +73,7 @@ npm start           # what Vercel runs
 | `src/digest.js`, `src/digest-views.js` | Weekly top-movers digest: `/digest`, `/digest/<monday>`, `/admin/digest` (LinkedIn text to copy; never auto-posted), weekly cron |
 | `src/test-requests.js`, `src/test-request-views.js`, `public/request.js` | Request a Polly Test here: `/request` (prefilled with `?ref=<ref>` from agent, listing and claim pages), sent to the grader's `POST <GRADER_URL>/api/request/`; status page `/request/<id>` reads the grade request's GitHub issue. Wallet button pays USDC on Base in the browser. MCP servers are stopped before payment (the grader can't test them) |
 | `src/findings.js` | Full findings report for paid Polly Tests: `/agents/<id>/findings` (only the member who claimed the agent), `/admin/findings/<id>`. Every task that lost points, worst first, with what full marks needed, the judges' note, the answer and how much fixing it could add. Reads grade data only |
-| `src/lite-checks.js`, `src/lite-check-views.js`, `public/lite.js` | Free Lite Check: `/lite` form, `/lite/<id>` result (private to its member), `/admin/lite` (run one, spend, open to members, pause). The grader runs it at `POST <GRADER_URL>/api/lite/` with `LITE_SECRET`. Limits: one per agent per 30 days, 3 per member a month, 30 a day, `LITE_MONTHLY_USD` (default $15) a month. Results (`lite_checks`) never touch grades, rankings, the digest or reputation. Off for members until Rob ticks "Open to members" |
+| `src/lite-checks.js`, `src/lite-check-views.js`, `public/lite.js` | Free Polly Peek (the grader calls it Lite Check): `/lite` form (`/peek` redirects there), `/lite/<id>` result (private to its member), `/admin/lite` (run one, spend, open to members, pause). The grader runs it at `POST <GRADER_URL>/api/lite/` with `LITE_SECRET`. Limits: one per agent per 30 days, 3 per member a month, 30 a day, `LITE_MONTHLY_USD` (default $15) a month. Results (`lite_checks`) never touch grades, rankings, the digest or reputation. Off for members until Rob ticks "Open to members" |
 | `data/agent-facts.json` | Hand-kept facts the grade data lacks (maker, website, pricing). Only confirmed facts; leave blanks blank |
 | `src/feed.js` | Public grades feed: `/api/grades.json`, `/api/grades/<id>.json`, `/api/grades/lookup`, and the `/feed` page |
 | `data/listed-on.json` | Hand-kept: where our own tested agents are registered, and entries never shown as untested |

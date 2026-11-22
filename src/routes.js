@@ -253,18 +253,43 @@ export function createRoutes({
   // ----- Signing in -----
 
   // Signing in and signing up are the same flow (a new person gets an account); only the words differ.
+  // Where to go after signing in: the page that sent you (?next=, or the page you came from on this site),
+  // so "Sign in to claim" or "Sign in to review" brings you back to that agent instead of your perch.
+  const NEXT_COOKIE = 'ap_next';
+  const safeNext = (v) => {
+    const s = String(v ?? '');
+    if (!s.startsWith('/') || s.startsWith('//') || /[\\\s]/.test(s) || s.length > 300) return null;
+    return /^\/(signin|signup|join|auth|logout|remove|me)\b/.test(s) ? null : s;
+  };
+  const refererPath = (req) => {
+    try {
+      const u = new URL(req.get('referer') ?? '');
+      return u.host === req.get('host') ? `${u.pathname}${u.search}` : null;
+    } catch {
+      return null;
+    }
+  };
+  const takeNext = (req, res) => {
+    const next = safeNext(parseCookies(req.headers.cookie)[NEXT_COOKIE]);
+    res.clearCookie(NEXT_COOKIE, { path: '/' });
+    return next;
+  };
+
   for (const [path, mode] of [['/signin', 'signin'], ['/signup', 'signup']]) {
     app.get(path, async (req, res) => {
       const member = await memberOf(req);
-      if (member) return res.redirect(member.consent_at ? '/me' : '/join');
+      const next = safeNext(req.query.next) ?? safeNext(refererPath(req));
+      if (member) return res.redirect(member.consent_at ? (next ?? '/me') : '/join');
+      if (next) res.cookie(NEXT_COOKIE, next, { httpOnly: true, sameSite: 'lax', secure, maxAge: 30 * 60000, path: '/' });
       res.send(views.signInPage({ providers: signInOptions(), emailLogin: Boolean(sendEmail), mode }));
     });
   }
 
-  const afterLogin = async (res, uid) => {
+  const afterLogin = async (req, res, uid) => {
     writeSession(res, { uid }, config.sessionSecret, secure);
     const member = await db.get(uid);
-    res.redirect(303, member.consent_at ? '/me' : '/join');
+    // A new member answers the join question first; the page they came from waits in its cookie until then.
+    res.redirect(303, member.consent_at ? (takeNext(req, res) ?? '/me') : '/join');
   };
 
   app.get('/auth/:provider', async (req, res, next) => {
@@ -272,7 +297,7 @@ export function createRoutes({
     if (!['linkedin', 'google', 'github'].includes(provider)) return next();
     if (config.devFakeLogin) {
       const uid = await db.recordLogin({ id: 'github:dev', name: 'Test Member', given_name: 'Test', family_name: 'Member', email: 'test@example.com', email_verified: true, github_login: 'test' });
-      return afterLogin(res, uid);
+      return afterLogin(req, res, uid);
     }
     const keys = config[provider];
     if (!keys?.clientId) return res.status(500).send(views.errorPage('That sign-in option is not set up yet.'));
@@ -294,7 +319,7 @@ export function createRoutes({
       const keys = config[provider];
       const profile = await fetchProfile(provider, { code, clientId: keys.clientId, clientSecret: keys.clientSecret, redirectUri: `${config.baseUrl}/auth/${provider}/callback` });
       if (!profile?.id) throw new Error(`${provider} did not return an id`);
-      await afterLogin(res, await db.recordLogin(profile));
+      await afterLogin(req, res, await db.recordLogin(profile));
     } catch (err) {
       console.error(err);
       res.status(502).send(views.errorPage('We could not finish signing you in. Please try again in a moment.'));
@@ -337,7 +362,7 @@ export function createRoutes({
   app.post('/auth/email/verify', async (req, res) => {
     const email = await db.logins.use(hashToken(req.body.token ?? ''));
     if (!email) return emailPage(res, { expired: true }, 400);
-    await afterLogin(res, await db.memberForEmail(email));
+    await afterLogin(req, res, await db.memberForEmail(email));
   });
 
   app.get('/join', signedIn, (req, res) => res.send(views.joinPage({ member: req.member })));
@@ -355,13 +380,15 @@ export function createRoutes({
       name: needsName ? name : '', role, squawk_optin: req.body.squawk === 'yes' && Boolean(req.member.email),
       joined_from: req.track.from, referred_by: inviter?.id,
     });
-    res.redirect(303, '/me');
+    res.redirect(303, takeNext(req, res) ?? '/me');
   });
 
   app.get('/me', signedIn, joined, async (req, res) => {
     const [inviteCode, invited, streak, claims] = await Promise.all([db.invites.codeFor(req.member.id), db.invites.count(req.member.id), db.game.streak(req.member.id, today()), claimsForMember(db, req.member)]);
     res.set('Cache-Control', 'private, no-store');
-    res.send(views.mePage({ member: req.member, inviteCode, invited, streak, claims: memberClaimsBlock(claims) + myRequestsBlock(await db.testRequests.mine(req.member.id)) + myLiteBlock(await db.liteChecks.mine(req.member.id)) }));
+    const peekOpen = Boolean(config.liteSecret) && (await db.settings.get('lite_open')) === '1' && (await db.settings.get('lite_paused')) !== '1';
+    const builder = claims.mine.length ? '' : views.builderStartBlock({ peekOpen });
+    res.send(views.mePage({ member: req.member, inviteCode, invited, streak, claims: memberClaimsBlock(claims) + builder + myRequestsBlock(await db.testRequests.mine(req.member.id)) + myLiteBlock(await db.liteChecks.mine(req.member.id)) }));
   });
 
   app.post('/remove', signedIn, async (req, res) => {

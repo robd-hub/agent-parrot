@@ -66,9 +66,6 @@ export function createRoutes({
     renewSession(req, res, config.sessionSecret, secure);
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('Referrer-Policy', 'same-origin');
-    // Pages differ for signed-in members (header, review forms), so the CDN keeps a separate copy per cookie.
-    // Signed-out visitors send no session cookie and share one cached copy.
-    res.setHeader('Vary', 'Cookie');
     views.pageContext.run({ signedIn: Boolean(req.session.uid), baseUrl: config.baseUrl, graderUrl: config.graderUrl, path: req.path }, next);
   });
 

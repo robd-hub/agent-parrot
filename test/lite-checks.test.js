@@ -131,7 +131,9 @@ test('members get one check per agent a month, three a month each, and private r
     assert.equal(r.status, 303);
     const page = r.location;
     await ada.req(`${page}/run`, { method: 'POST', headers: { Accept: 'application/json' } });
-    assert.match((await ada.req(page)).text, /only you can see this/);
+    const shown = (await ada.req(page)).text;
+    assert.match(shown, /only you can see this/);
+    assert.match(shown, /Two things to fix/);
     // Nobody else can see Ada's result, or run it.
     assert.equal((await bob.req(page)).status, 404);
     assert.equal((await app.client().req(page)).status, 404);

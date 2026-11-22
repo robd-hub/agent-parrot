@@ -42,7 +42,7 @@ export function litePage({ open, member, form = {}, agentRef = '', from = null, 
   const head = `<section class="page-head">
       <p class="eyebrow">For builders · free</p>
       <h1>Free Polly Peek</h1>
-      <p class="lead">A quick look at your agent in about a minute: a band (Strong, Mixed or Weak), the checks Polly ran and two things to fix. It's free, and it isn't a grade.</p>
+      <p class="lead">A quick look at your agent in about a minute: a band (Strong, Mixed or Weak), the checks Polly ran and what to fix first. It's free, and it isn't a grade.</p>
     </section>`;
   if (!open) {
     return layout('Free Polly Peek', `${head}
@@ -92,7 +92,7 @@ export function liteResultPage({ row, runUrl, admin = false }) {
       <h1>${esc(name)}</h1>
       <p class="lead"><span class="pill ${b.cls}"><b>${esc(b.label)}</b></span>&nbsp; ${esc(b.meaning)}.${r.reason ? ` ${esc(r.reason)}` : ''}${r.band === 'couldnt-check' && !admin ? " It doesn't count against your free checks, so you can fix it and try again." : ''}</p>
     </section>
-    ${r.findings?.length ? `<section class="card section"><h2>Two things Polly noticed</h2>
+    ${r.findings?.length ? `<section class="card section"><h2>${r.findings.length === 1 ? 'One thing to fix' : 'Two things to fix'}</h2>
       <ol>${r.findings.map((f) => `<li><b>${esc(f.from)}:</b> ${esc(f.text)}</li>`).join('')}</ol></section>` : ''}
     <section class="card section"><h2>What Polly checked</h2>
       <ul class="plain-list lite-list">${(r.checks ?? []).map((c) => `<li><span class="lite-mark lite-${esc(c.status)}" aria-label="${esc(c.status)}">${MARK[c.status] ?? '–'}</span> <b>${esc(c.label)}:</b> ${esc(c.detail)}</li>`).join('')}

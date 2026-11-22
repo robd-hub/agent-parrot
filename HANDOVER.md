@@ -35,6 +35,7 @@ Rules and commands are in `CLAUDE.md`. Update this file when something below cha
 | #20 | Maker reviews: every member review of a maker's agents put together on their page (average, how many reviews, agents and members, a 1 to 5 star spread, the 10 newest with links to each agent). A compact line under the maker reputation on agent pages, and a "Maker ★" tag on `/agents` and `/listed` cards once two or more of their agents have reviews. Still never counted in the maker reputation score. Hidden reviews drop out. `reviews.makerSummaries` and `reviews.forMaker` in `src/db.js` |
 | #17 | Weekly top-movers digest (`src/digest.js`, `src/digest-views.js`): biggest grade climbs and drops, first Polly Tests, agents that went quiet or came back (health), member reviews, new directory listings, top 3. Built Mondays 07:00 UTC and kept per week (`digests` table); earlier weeks are filled in from grade history (no health for those). Public `/digest` and `/digest/<monday>`; `/admin/digest` has the ready-to-post LinkedIn text with a copy button. Rob posts it himself, nothing is auto-posted |
 | #13 | Grade history chart on each tested agent's page (every past Agent Report Card run) and a Security section (HTTPS, key, payment, tool powers) |
+| #22 | Request a Polly Test on our own page, `/request`: form sent to the grader's `POST /api/request/`, wallet button for USDC on Base, card via the grader's Stripe link, a status page per request (`/request/<id>`), "Test this agent" buttons everywhere |
 
 ## Waiting on Rob
 
@@ -69,13 +70,15 @@ Rules and commands are in `CLAUDE.md`. Update this file when something below cha
 
 - Grades come from the agent-report-card repo via `npm run sync-grades` (repos side by side). Never edit
   `data/agents.json` by hand; grades must match Agent Report Card exactly.
-- Paid tests ($10, $5 retest) are requested on our own page, `/request` (PR from `claude/request-a-test`, not merged yet).
+- Paid tests ($10, $5 retest) are requested on our own page, `/request` (PR #22, merged 22 Nov 2026).
   It posts the form as JSON to the grader's `POST <GRADER_URL>/api/request/` (default https://grader.designimp.com),
   the same call the grader's own form makes. The grader checks the USDC payment on Base, opens a GitHub issue on
   robd-hub/agent-report-card and grades it. We keep the issue link in `test_requests` and show `/request/<id>`
   (paid, being tested, graded, on Agent Parrot). Card payments use the grader's Stripe link (`CARD_PAYMENT_LINK`,
   defaults to it); Stripe collects the agent link and the grader opens the request itself, so card buyers get no
-  status page here. The grader has no MCP adapter, so MCP addresses are refused before anyone pays. New grades
+  status page here. Since grader PR #57 the grader tests remote MCP servers too (core tasks only, no honesty tasks);
+  an MCP address without `/mcp`, `/sse` or an `mcp.` host is sent as `mcp:<address>`, and "Check it first (free)" runs the
+  grader's check (it connects to the MCP server) before anyone pays. New grades
   only show on the site after `npm run sync-grades`.
 - Hackathons, listings and registries keep the "Agent Report Card" name. Parrot names are this site only.
 - Rob's own agents on the site: Cheap First (grade A, 98, https://cheap-first.vercel.app/) and the Agent

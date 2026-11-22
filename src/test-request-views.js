@@ -19,13 +19,22 @@ export function myRequestsBlock(rows = []) {
       <span class="muted small">sent ${esc(dateLabel(r.created_at))} · ${r.issue_state === 'closed' ? 'graded' : 'being tested'}</span></li>`).join('')}</ul></section>`;
 }
 
-export function requestPage({ form = {}, agentRef = '', from = null, tested = null, error, field: badField, fallback = false, cardLink, payAddress, mine = [] }) {
+const MCP_NOTE = 'Polly connects to it, picks the tools it can safely use (read-only ones), and runs real tasks through them. MCP servers get the core tasks only, with no honesty checks.';
+
+function checkBlock(check) {
+  if (!check) return '';
+  if (!check.ok) return `<p class="error" role="alert"><b>Check failed, nothing was paid.</b> ${esc(check.error)}</p>`;
+  const m = check.mcp;
+  return `<p class="notice" role="status"><b>Polly can test it.</b> ${m ? `It's an MCP server${m.name ? ` (${esc(m.name)})` : ''} with ${Number(m.tools)} ${m.tools === 1 ? 'tool' : 'tools'}${m.usable.length ? `; Polly will use ${m.usable.map((t) => `<code>${esc(t)}</code>`).join(', ')}` : ''}. ` : ''}Your price is <b>$${esc(check.priceUsd)}</b>${check.regrade ? ' (a retest)' : ''}. Pay below, then send your request.</p>`;
+}
+
+export function requestPage({ form = {}, agentRef = '', from = null, tested = null, error, field: badField, fallback = false, check = null, cardLink, payAddress, mine = [] }) {
   const price = tested ? PRICE.retest : PRICE.test;
   const bad = (n) => badField === n;
   const openAi = /\/chat\/completions\/?$/.test((form.agent ?? '').split(/\s+/)[0] ?? '');
   const intro = from
     ? `<p class="notice">Requesting a test for <a href="${esc(from.path)}"><b>${esc(from.name)}</b></a>.${tested ? ` Polly has tested it before (grade ${esc(tested.grade)}, ${esc(dateLabel(tested.gradedAt))}), so this is a <b>$${PRICE.retest} retest</b>.` : ''}
-       ${from.mcp ? '<br><b>Heads up:</b> this listing is an MCP server, and Polly can\'t test MCP servers yet. If your agent also has an address that answers a prompt, put that below instead.' : ''}</p>`
+       ${from.mcp ? `<br>It's an MCP server. ${MCP_NOTE} Press <b>Check it first</b> before you pay.` : ''}</p>`
     : tested ? `<p class="notice">Polly has tested <b>${esc(tested.name)}</b> before, so this is a <b>$${PRICE.retest} retest</b>.</p>` : '';
   return layout('Request a Polly Test', `
     <section class="page-head">
@@ -34,19 +43,23 @@ export function requestPage({ form = {}, agentRef = '', from = null, tested = nu
       <p class="lead">Tell Polly where your agent lives and what it's for, pay, and get a public grade, usually within half an hour. $${PRICE.test} for a first test, $${PRICE.retest} for a retest.</p>
     </section>
     ${intro}
+    ${checkBlock(check)}
     ${error ? `<p class="error" role="alert">${esc(error)}${fallback ? ` You can also <a href="${esc(GITHUB_FORM)}" target="_blank" rel="noopener">send the request on GitHub</a>.` : ''}</p>` : ''}
     <form method="post" action="/request" class="card section stack request-form" id="request-form" data-price="${price}" data-pay="${esc(payAddress)}">
       <input type="hidden" name="agentRef" value="${esc(agentRef)}">
       <h2>1. Your agent</h2>
       ${field({ name: 'agent', label: 'Where can Polly find it?', required: true, max: 500, value: form.agent, bad: bad('agent'),
-        placeholder: 'https://platform.openserv.ai/agents/123 or https://your-agent.example/api',
-        help: 'Its OpenServ marketplace link, or a public https address that answers a POST with <code>{"prompt": "..."}</code>, or an OpenAI-style <code>/chat/completions</code> address. It must work without a key. MCP servers can\'t be tested yet.' })}
+        placeholder: 'https://platform.openserv.ai/agents/123 or https://your-agent.example/mcp',
+        help: 'Its OpenServ marketplace link, a remote MCP server, a public https address that answers a POST with <code>{"prompt": "..."}</code>, or an OpenAI-style <code>/chat/completions</code> address. It must work without a key. If an MCP server\'s address doesn\'t have <code>/mcp</code> in it, put <code>mcp:</code> in front.' })}
       <div id="rq-model-wrap"${openAi || bad('model') ? '' : ' hidden'}>${field({ name: 'model', label: 'Model name (OpenAI-style addresses only)', max: 100, value: form.model, bad: bad('model'), placeholder: 'my-agent-v1' })}</div>
       ${field({ name: 'whatItDoes', label: 'What does it do?', required: true, textarea: true, max: 2000, minLength: 10, value: form.whatItDoes, bad: bad('whatItDoes'),
         placeholder: 'A sentence or two on the jobs it\'s built for, so Polly can pick fair test tasks.' })}
       ${field({ name: 'name', label: 'Agent name', max: 80, value: form.name, placeholder: 'My Research Agent' })}
       ${field({ name: 'task', label: 'A real task you\'d like it tested on', textarea: true, rows: 2, max: 1000, value: form.task, placeholder: 'Something your users actually ask it.' })}
       ${field({ name: 'contact', label: 'How should we reach you?', max: 200, value: form.contact, placeholder: '@yourhandle (optional)', help: 'Optional. It goes on the public grade request, so don\'t put anything private here.' })}
+
+      <p class="row"><button type="submit" name="intent" value="check" class="ghost" formnovalidate>Check it first (free)</button>
+        <span class="muted small">Polly makes sure it can reach your agent and tells you the price, before you pay.</span></p>
 
       <h2>2. Pay</h2>
       <p>Send <b class="rq-price">$${price}</b> in USDC on Base to <a href="${esc(basescan(payAddress))}" target="_blank" rel="noopener"><code class="wrap">${esc(payAddress)}</code></a>. The grader checks the payment on Base before it opens your request, and a payment can only be used once.</p>
@@ -68,7 +81,7 @@ export function requestPage({ form = {}, agentRef = '', from = null, tested = nu
       <h2>What happens next</h2>
       <ol class="plain-list">
         <li>The grader checks your payment and opens your request.</li>
-        <li>Polly writes tasks that match what your agent says it does, plus the honesty checks, and runs them.</li>
+        <li>Polly writes tasks that match what your agent says it does, plus the honesty checks (not for MCP servers), and runs them.</li>
         <li>Two judges score every answer: Reppo (70%) and SERV (30%).</li>
         <li>Your grade, every answer and a badge land on the request, usually within half an hour, then on Agent Parrot with a place in the Pecking Order.</li>
       </ol>

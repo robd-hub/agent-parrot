@@ -63,7 +63,8 @@
     }
     let hash;
     try {
-      say('Connecting to your wallet…');
+      if (quote.mcp) say(`Polly can reach your MCP server (${quote.mcp.tools} tools). Connecting to your wallet…`);
+      else say('Connecting to your wallet…');
       const accounts = await wallet.request({ method: 'eth_requestAccounts' });
       if (!accounts || !accounts[0]) throw new Error('No wallet account was shared.');
       say('Switching your wallet to Base…');

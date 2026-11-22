@@ -478,6 +478,38 @@ th { font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; color:
 .review-report summary { cursor: pointer; }
 .review-report form { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
 
+/* Report an agent (src/agent-report-views.js) */
+.report-box { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.agent-report > summary { cursor: pointer; list-style: none; display: inline-block; }
+.agent-report > summary::-webkit-details-marker { display: none; }
+.agent-report > summary.danger { border-color: var(--red); color: var(--red); background: transparent; }
+.agent-report form { margin-top: 10px; max-width: 560px; }
+.agent-report fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 6px; }
+.agent-report legend { font-weight: 700; margin-bottom: 4px; }
+.agent-report .radio { display: flex; gap: 10px; align-items: center; font-weight: 500; }
+.agent-report .radio input { width: auto; margin: 0; }
+.flag-community { font-weight: 600; }
+/* Claim your listing (src/claim-views.js) */
+.tag-claimed { background: color-mix(in srgb, var(--green) 16%, transparent); color: var(--green-ink); text-decoration: none; }
+.tag-unclaimed { background: transparent; border: 1px dashed var(--line, #ccc); color: var(--muted, #666); font-weight: 600; text-decoration: none; }
+a.tag-claimed:hover, a.tag-unclaimed:hover { text-decoration: underline; }
+.agent-hero .tag-claimed, .agent-hero .tag-unclaimed { margin-bottom: 6px; }
+.check-result { font-size: 1.05rem; }
+.check-result.ok b { color: var(--green-ink); }
+.check-result.bad b { color: var(--red, #c92a2a); }
+.invite-link label { display: block; margin-bottom: 4px; }
+.invite-link input { width: 100%; }
+/* A maker's agents' reviews together (maker pages, agent pages, cards) */
+#maker-reviews { scroll-margin-top: 90px; }
+.maker-reviews-top { display: flex; gap: 28px; align-items: center; flex-wrap: wrap; margin: 12px 0 8px; }
+.maker-reviews-top .review-summary { margin: 0; }
+.dist { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; min-width: 200px; flex: 1; max-width: 320px; }
+.dist li { display: grid; grid-template-columns: 2.4em 1fr 2.4em; align-items: center; gap: 8px; font-size: .85rem; }
+.dist-bar { height: 8px; border-radius: 99px; background: var(--surface-2); overflow: hidden; }
+.dist-bar span { display: block; height: 100%; background: var(--yellow); border-radius: 99px; }
+.dist-n { color: var(--muted); text-align: right; }
+.maker-rating { margin: 10px 0 0; }
+.tag-maker-rating { border: 1px dashed var(--line); background: transparent; }
 /* Weekly digest */
 .digest-section h2 { margin-top: 0; }
 .mover-list { list-style: none; padding: 0; margin: .5em 0 0; }

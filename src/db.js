@@ -165,11 +165,50 @@ const SCHEMA = `
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
   );
+  -- Members reporting an agent (scam, broken, misleading, unsafe permissions, other). One open report per member per
+  -- agent. The organiser confirms or dismisses each one; only confirmed reports show as a community flag on the agent.
+  CREATE TABLE IF NOT EXISTS agent_reports (
+    id          SERIAL PRIMARY KEY,
+    agent_ref   TEXT NOT NULL,
+    member_id   TEXT NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    reason      TEXT NOT NULL,
+    note        TEXT NOT NULL DEFAULT '',
+    -- open, confirmed or dismissed
+    status      TEXT NOT NULL DEFAULT 'open',
+    -- What the organiser wrote when confirming, shown on the agent's page.
+    public_note TEXT NOT NULL DEFAULT '',
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    reviewed_at TIMESTAMPTZ
+  );
+  CREATE INDEX IF NOT EXISTS agent_reports_ref ON agent_reports (agent_ref, status);
+  CREATE UNIQUE INDEX IF NOT EXISTS agent_reports_one_open ON agent_reports (agent_ref, member_id) WHERE status = 'open';
+  -- Claimed listings (src/claims.js): the member who proved they own an agent. One owner per agent. agent_ref is the
+  -- same ref reviews use (a tested id or a listed "source:id"). method says how they proved it, proof what matched.
+  CREATE TABLE IF NOT EXISTS claims (
+    agent_ref  TEXT PRIMARY KEY,
+    member_id  TEXT NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    method     TEXT NOT NULL,
+    proof      TEXT NOT NULL DEFAULT '',
+    checked_at TIMESTAMPTZ,
+    badge_seen_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+  CREATE INDEX IF NOT EXISTS claims_member ON claims (member_id);
   -- Simple on/off switches the organiser flips from the admin pages, such as pausing The Daily Hallucination.
   CREATE TABLE IF NOT EXISTS settings (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
   )`;
+
+// The agents that belong to each maker key in $n (an array), as (key, ref) rows named refs, for the review queries.
+// $n+1 and $n+2 are matching arrays of extra (key, tested id) pairs. A listing matched to a tested agent counts as that agent.
+const makerRefs = (n) => `refs AS (
+    SELECT maker_key AS key, coalesce(tested_id, source || ':' || source_id) AS ref FROM listed_agents WHERE maker_key = ANY($${n}::text[])
+    UNION SELECT k, t FROM unnest($${n + 1}::text[], $${n + 2}::text[]) AS x(k, t))`;
+const testedPairs = (keys, tested) => {
+  const pairs = keys.flatMap((k) => (tested[k] ?? []).map((id) => [k, id]));
+  return [pairs.map((p) => p[0]), pairs.map((p) => p[1])];
+};
 
 export async function connect({ databaseUrl, localDir } = {}) {
   if (databaseUrl) {
@@ -463,6 +502,27 @@ export function openDb(client) {
           WHERE agent_ref = ANY($1) AND NOT hidden GROUP BY agent_ref`, [list]);
         return Object.fromEntries(rows.map((r) => [r.agent_ref, { count: r.count, avg: r.avg }]));
       },
+      // What members think of each maker's agents taken together, counting visible reviews only:
+      // { key: { count, avg, members, agents, dist: [1-star count, ..., 5-star count] } }. A maker's agents are their
+      // listings plus `tested[key]`, the tested ids named for them in data/agent-facts.json.
+      async makerSummaries(keys, tested = {}) {
+        const list = [...new Set(keys.filter(Boolean))];
+        if (!list.length) return {};
+        const rows = await q(`WITH ${makerRefs(1)}
+          SELECT refs.key, count(*)::int AS count, avg(r.stars)::float AS avg, count(DISTINCT r.member_id)::int AS members,
+            count(DISTINCT r.agent_ref)::int AS agents,
+            array[${[1, 2, 3, 4, 5].map((n) => `count(*) FILTER (WHERE r.stars = ${n})`).join(', ')}]::int[] AS dist
+          FROM refs JOIN reviews r ON r.agent_ref = refs.ref WHERE NOT r.hidden GROUP BY refs.key`, [list, ...testedPairs(list, tested)]);
+        return Object.fromEntries(rows.map(({ key, ...s }) => [key, s]));
+      },
+      // The newest visible reviews of any of one maker's agents, with the listing's name and place where it is one.
+      forMaker: (key, testedIds = [], limit = 10) =>
+        q(`WITH ${makerRefs(1)}
+          SELECT r.id, r.agent_ref, r.stars, r.body, r.created_at, r.updated_at, m.name, m.first_name, m.last_name, m.role,
+            la.name AS agent_name, la.source, la.source_id
+          FROM refs JOIN reviews r ON r.agent_ref = refs.ref JOIN members m ON m.id = r.member_id
+          LEFT JOIN listed_agents la ON la.tested_id IS NULL AND la.source || ':' || la.source_id = r.agent_ref
+          WHERE NOT r.hidden ORDER BY r.updated_at DESC, r.id DESC LIMIT $4`, [[key], ...testedPairs([key], { [key]: testedIds }), limit]),
       // Saves and reports by one member (or everyone, with null) in the last so many seconds.
       recentActions: async (memberId, kind, seconds) => (await one(
         `SELECT count(*)::int AS n FROM review_actions WHERE ($1::text IS NULL OR member_id = $1) AND kind = $2
@@ -489,6 +549,87 @@ export function openDb(client) {
         q(`UPDATE reviews r SET agent_ref = l.tested_id FROM listed_agents l
            WHERE l.tested_id IS NOT NULL AND r.agent_ref = l.source || ':' || l.source_id
              AND NOT EXISTS (SELECT 1 FROM reviews x WHERE x.agent_ref = l.tested_id AND x.member_id = r.member_id)`),
+    },
+
+    // Members reporting an agent (see src/agent-reports.js). Rate limits reuse review_actions (kind 'agent-report').
+    agentReports: {
+      // Returns the new report's id, or null when this member already has an open report on this agent.
+      async add(ref, memberId, reason, note) {
+        await q("INSERT INTO review_actions (member_id, kind) VALUES ($1, 'agent-report')", [memberId]);
+        return (await one(
+          `INSERT INTO agent_reports (agent_ref, member_id, reason, note) VALUES ($1, $2, $3, $4)
+           ON CONFLICT (agent_ref, member_id) WHERE status = 'open' DO NOTHING RETURNING id`, [ref, memberId, reason, note]))?.id ?? null;
+      },
+      // This member's open report on this agent, if any.
+      mine: (ref, memberId) => one("SELECT id, reason, created_at FROM agent_reports WHERE agent_ref = $1 AND member_id = $2 AND status = 'open'", [ref, memberId]),
+      // For each ref: confirmed reports grouped by reason, and how many different members have open reports.
+      // { ref: { confirmed: [{ reason, members, last_at, public_note }], open: n } }
+      async summaries(refs) {
+        const list = [...new Set(refs.filter(Boolean))];
+        if (!list.length) return {};
+        const rows = await q(`SELECT agent_ref, reason, status, count(DISTINCT member_id)::int AS members, max(reviewed_at) AS last_at,
+            (array_agg(public_note ORDER BY reviewed_at DESC) FILTER (WHERE public_note <> ''))[1] AS public_note
+          FROM agent_reports WHERE agent_ref = ANY($1) AND status IN ('open', 'confirmed') GROUP BY agent_ref, reason, status`, [list]);
+        const out = {};
+        for (const r of rows) {
+          const s = (out[r.agent_ref] ??= { confirmed: [], open: 0 });
+          if (r.status === 'confirmed') s.confirmed.push({ reason: r.reason, members: r.members, last_at: r.last_at, public_note: r.public_note ?? '' });
+        }
+        const open = await q(`SELECT agent_ref, count(DISTINCT member_id)::int AS n FROM agent_reports
+          WHERE agent_ref = ANY($1) AND status = 'open' GROUP BY agent_ref`, [list]);
+        for (const r of open) (out[r.agent_ref] ??= { confirmed: [], open: 0 }).open = r.n;
+        return out;
+      },
+      // For the organiser: open reports first, then the newest checked ones, with who sent each.
+      forAdmin: () =>
+        q(`SELECT a.*, m.name, m.email, x.others FROM agent_reports a JOIN members m ON m.id = a.member_id
+           LEFT JOIN (SELECT agent_ref, count(DISTINCT member_id)::int AS others FROM agent_reports WHERE status = 'open' GROUP BY agent_ref) x
+             ON x.agent_ref = a.agent_ref
+           ORDER BY (a.status = 'open') DESC, a.created_at DESC LIMIT 300`),
+      get: (id) => one('SELECT * FROM agent_reports WHERE id = $1', [id]),
+      // Confirm, dismiss or reopen one report. Reopening is refused (returns null) if the member has sent a newer open one.
+      async setStatus(id, status, publicNote = '') {
+        try {
+          return await one(`UPDATE agent_reports SET status = $2, public_note = $3, reviewed_at = CASE WHEN $2 = 'open' THEN NULL ELSE now() END
+            WHERE id = $1 RETURNING id`, [id, status, status === 'confirmed' ? publicNote : '']);
+        } catch (e) {
+          if (e.code === '23505' || /unique|duplicate/i.test(e.message)) return null;
+          throw e;
+        }
+      },
+      // When a listed agent turns out to be one of our tested agents, its reports move with it (as reviews do).
+      adopt: () =>
+        q(`UPDATE agent_reports a SET agent_ref = l.tested_id FROM listed_agents l
+           WHERE l.tested_id IS NOT NULL AND a.agent_ref = l.source || ':' || l.source_id
+             AND NOT (a.status = 'open' AND EXISTS (SELECT 1 FROM agent_reports x WHERE x.agent_ref = l.tested_id AND x.member_id = a.member_id AND x.status = 'open'))`),
+    },
+
+    // Claimed listings (see src/claims.js).
+    claims: {
+      get: (ref) => one('SELECT c.*, m.name, m.first_name, m.last_name, m.member_number FROM claims c JOIN members m ON m.id = c.member_id WHERE c.agent_ref = $1', [ref]),
+      // Saves a claim unless someone else already holds it. Returns the claim as it now stands.
+      async save(ref, memberId, method, proof) {
+        await q('INSERT INTO claims (agent_ref, member_id, method, proof) VALUES ($1, $2, $3, $4) ON CONFLICT (agent_ref) DO NOTHING', [ref, memberId, method, proof]);
+        return one('SELECT * FROM claims WHERE agent_ref = $1', [ref]);
+      },
+      mine: (memberId) => q('SELECT * FROM claims WHERE member_id = $1 ORDER BY created_at', [memberId]),
+      // Which of these refs are claimed: { ref: true }.
+      async which(refs) {
+        const list = [...new Set(refs.filter(Boolean))];
+        if (!list.length) return {};
+        return Object.fromEntries((await q('SELECT agent_ref FROM claims WHERE agent_ref = ANY($1)', [list])).map((r) => [r.agent_ref, true]));
+      },
+      // Listings whose registry-checked maker is this GitHub login and that nobody has claimed yet.
+      unclaimedFor: (makerKey, limit = 20) =>
+        q(`SELECT l.* FROM listed_agents l WHERE l.maker_key = $1 AND l.tested_id IS NULL
+             AND NOT EXISTS (SELECT 1 FROM claims c WHERE c.agent_ref = l.source || ':' || l.source_id)
+           ORDER BY lower(l.name) LIMIT $2`, [makerKey, limit]),
+      release: (ref, memberId) => q('DELETE FROM claims WHERE agent_ref = $1 AND member_id = $2', [ref, memberId]),
+      remove: (ref) => q('DELETE FROM claims WHERE agent_ref = $1', [ref]),
+      markChecked: (ref) => q('UPDATE claims SET checked_at = now() WHERE agent_ref = $1', [ref]),
+      // A badge was loaded. Kept to once an hour per claim so badge views stay cheap.
+      badgeSeen: (ref) => q("UPDATE claims SET badge_seen_at = now() WHERE agent_ref = $1 AND (badge_seen_at IS NULL OR badge_seen_at < now() - interval '1 hour')", [ref]),
+      forAdmin: () => q(`SELECT c.*, m.name, m.email, m.github_login FROM claims c JOIN members m ON m.id = c.member_id ORDER BY c.created_at DESC LIMIT 500`),
     },
 
     game: {
@@ -531,7 +672,7 @@ export function openDb(client) {
     // Counts for the organiser's overview. Numbers only.
     async overview() {
       const joined = 'consent_at IS NOT NULL';
-      const [m, sources, inviters, roles, players, suggestions] = await Promise.all([
+      const [m, sources, inviters, roles, players, suggestions, reports] = await Promise.all([
         one(`SELECT count(*) FILTER (WHERE ${joined})::int AS joined,
                     count(*) FILTER (WHERE NOT (${joined}))::int AS started,
                     count(*) FILTER (WHERE ${joined} AND consent_at >= now() - interval '7 days')::int AS joined_7d,
@@ -543,8 +684,9 @@ export function openDb(client) {
         q(`SELECT COALESCE(role, '') AS role, count(*)::int AS n FROM members WHERE ${joined} GROUP BY 1 ORDER BY n DESC`),
         one("SELECT count(DISTINCT member_id)::int AS n FROM game_results WHERE created_at >= now() - interval '7 days'"),
         one("SELECT count(*)::int AS n FROM listings WHERE status = 'suggested'"),
+        one("SELECT count(*)::int AS n FROM agent_reports WHERE status = 'open'"),
       ]);
-      return { members: m, sources, inviters, roles, players7d: players.n, suggestions: suggestions.n };
+      return { members: m, sources, inviters, roles, players7d: players.n, suggestions: suggestions.n, openReports: reports.n };
     },
     close: () => client.close(),
   };

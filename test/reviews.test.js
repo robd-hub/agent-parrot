@@ -203,10 +203,60 @@ test('listed agents take reviews too, shown on /listed cards and maker pages, an
   assert.match((await visitor.req(path)).text, /Handy\./);
   assert.match((await visitor.req('/listed')).text, /★ 4\.0/);
   const maker = await visitor.req('/makers/github/acme');
-  assert.match(maker.text, /4\.0<\/b> average from 1 member review/);
-  assert.match(maker.text, /Not counted in the reputation score/);
+  assert.match(maker.text, /What members say/);
+  assert.match(maker.text, /1 review of 1 agent/);
+  assert.match(maker.text, /Not counted in the maker reputation score/);
+  // With one agent reviewed, the card shows that agent's rating only, not a second maker tag.
+  assert.ok(!(await visitor.req('/listed')).text.includes('Maker ★'));
   // Once the listing is matched to a tested agent, its reviews move to that agent.
   await s.db.listed.save(prepare([{ ...fromMcp(entry), tested_id: 'coder' }]).map((x) => ({ ...x, tested_id: 'coder' })));
   await s.db.reviews.adopt();
   assert.deepEqual(await s.db.reviews.summaries(['coder', 'mcp:io.github.acme/weather']), { coder: { count: 1, avg: 4 } });
+});
+
+test("a maker's page puts all their agents' reviews together, apart from the reputation score", async (t) => {
+  const s = await start();
+  t.after(s.close);
+  const META = 'io.modelcontextprotocol.registry/official';
+  // Cheap First is Rob's tested agent (github:robd-hub in data/agent-facts.json); this listing is his too.
+  const entry = { server: { name: 'io.github.robd-hub/notes', description: 'Notes', version: '1.0.0', repository: { url: 'https://github.com/robd-hub/notes' },
+    remotes: [{ type: 'streamable-http', url: 'https://notes.example/mcp' }] }, _meta: { [META]: { status: 'active', isLatest: true, publishedAt: '2026-11-10T00:00:00Z' } } };
+  await s.db.listed.save(prepare([fromMcp(entry)]));
+  const visitor = s.client();
+  const before = await visitor.req('/makers/github/robd-hub');
+  assert.match(before.text, /No member reviews of their agents yet/);
+  const score = (html) => /class="rep-score[^"]*">(\d+)</.exec(html)[1];
+
+  const ada = await s.member('ada');
+  const bob = await s.member('bob');
+  await ada.req('/reviews', { method: 'POST', form: { ref: 'cheap-first', stars: '5', body: 'Saved me money.' } });
+  await ada.req('/reviews', { method: 'POST', form: { ref: 'mcp:io.github.robd-hub/notes', stars: '3' } });
+  await bob.req('/reviews', { method: 'POST', form: { ref: 'mcp:io.github.robd-hub/notes', stars: '4', body: 'Tidy notes.' } });
+
+  const all = await s.db.reviews.makerSummaries(['github:robd-hub'], { 'github:robd-hub': ['cheap-first'] });
+  assert.deepEqual(all['github:robd-hub'], { count: 3, avg: 4, members: 2, agents: 2, dist: [0, 0, 1, 1, 1] });
+
+  const page = await visitor.req('/makers/github/robd-hub');
+  assert.match(page.text, /id="maker-reviews"/);
+  assert.match(page.text, /review-avg">4\.0</);
+  assert.match(page.text, /3 reviews of 2 agents<br>from 2 members/);
+  assert.match(page.text, /Saved me money\./);
+  assert.match(page.text, /href="\/agents\/cheap-first#reviews">Cheap First</);
+  assert.match(page.text, /href="\/listed\/mcp\/io\.github\.robd-hub\/notes#reviews">notes</);
+  assert.match(page.text, /Only a few members so far/);
+  assert.match(page.text, /Not counted in the maker reputation score/);
+  assert.equal(score(page.text), score(before.text), 'reviews never change the reputation score');
+
+  // Compact versions: agent pages and directory cards.
+  assert.match((await visitor.req('/agents/cheap-first')).text, /4\.0<\/b> member rating across this maker's agents, from 3 reviews of 2 agents\./);
+  assert.match((await visitor.req('/listed/mcp/io.github.robd-hub/notes')).text, /member rating across this maker's agents/);
+  assert.match((await visitor.req('/agents')).text, /Maker ★ 4\.0 <span class="muted">\(3\)/);
+  assert.match((await visitor.req('/listed')).text, /Maker ★ 4\.0/);
+
+  // Hidden reviews drop out of the combined rating too.
+  const [hide] = (await s.db.reviews.forMaker('github:robd-hub', ['cheap-first'])).filter((r) => r.stars === 5);
+  await s.db.reviews.setHidden(hide.id, true);
+  const after = await s.db.reviews.makerSummaries(['github:robd-hub'], { 'github:robd-hub': ['cheap-first'] });
+  assert.deepEqual(after['github:robd-hub'], { count: 2, avg: 3.5, members: 2, agents: 1, dist: [0, 0, 1, 1, 0] });
+  assert.ok(!(await visitor.req('/makers/github/robd-hub')).text.includes('Saved me money'));
 });

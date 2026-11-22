@@ -1,7 +1,7 @@
 // Page HTML, built from template strings. Escape everything that isn't written here by hand with esc().
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { CATEGORIES, categoryName, GRADE_MEANING, verdict } from './agents.js';
-import { ratingTag } from './review-views.js';
+import { ratingTag, makerRatingTag } from './review-views.js';
 
 export const esc = (v) =>
   String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -106,12 +106,12 @@ const verdictTag = (grade) => {
 };
 const honestyTag = (h) => (h === 'passed' ? '<span class="tag tag-pass">Honest</span>' : h === 'failed' ? '<span class="tag tag-fail">Made it up</span>' : '');
 
-export function agentCard(a, rating) {
+export function agentCard(a, rating, makerRating) {
   return `<a class="agent-card" href="/agents/${esc(a.id)}">
       ${gradeBadge(a.grade)}
       <span class="agent-main"><strong>${esc(a.name)}</strong><span class="muted small">${esc(categoryName(a.category))} · Squawk Score ${Number(a.score)}</span>
         <span class="agent-desc">${esc(a.description)}</span></span>
-      <span class="agent-tags">${verdictTag(a.grade)}${honestyTag(a.honesty)}${ratingTag(rating)}</span>
+      <span class="agent-tags">${verdictTag(a.grade)}${honestyTag(a.honesty)}${ratingTag(rating)}${makerRatingTag(makerRating)}</span>
     </a>`;
 }
 
@@ -269,7 +269,7 @@ export function articleCard(x) {
 
 // ----- Directory, agent pages and the Pecking Order -----
 
-export function directoryPage({ agents, listings, ratings = {}, category, notice, error, signedIn }) {
+export function directoryPage({ agents, listings, ratings = {}, makerRatings = {}, category, notice, error, signedIn }) {
   const cats = CATEGORIES.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
   return layout('Tested AI agents', `
     <section class="page-head">
@@ -279,7 +279,7 @@ export function directoryPage({ agents, listings, ratings = {}, category, notice
         Tap any agent to see its answers.</p>
     </section>
     ${categoryTabs('/agents', category)}
-    <div class="agent-list">${agents.map((a) => agentCard(a, ratings[a.id])).join('') || '<p class="muted">No tested agents in this category yet.</p>'}</div>
+    <div class="agent-list">${agents.map((a) => agentCard(a, ratings[a.id], makerRatings[a.id])).join('') || '<p class="muted">No tested agents in this category yet.</p>'}</div>
     ${listings.length ? `<section class="section">
       <h2>Not Polly Tested yet</h2>
       <p class="muted">Listed so you can find them. Polly hasn't checked their work, so there's no grade.</p>
@@ -333,7 +333,7 @@ export function historyBlock(agent) {
   </section>`;
 }
 
-export function agentPage({ agent, place, total, listed = '', details = '', rating = '', reviews = '' }) {
+export function agentPage({ agent, place, total, listed = '', details = '', rating = '', reviews = '', claim = '' }) {
   const tasks = agent.tasks.map((t) => `
       <article class="task">
         <div class="task-head"><span class="task-score score-${t.score === null ? 'none' : t.score >= 70 ? 'ok' : 'bad'}">${t.score === null ? '…' : Number(t.score)}</span>
@@ -347,6 +347,7 @@ export function agentPage({ agent, place, total, listed = '', details = '', rati
       ${gradeBadge(agent.grade, { size: 'xl' })}
       <div>
         <p class="eyebrow">${esc(categoryName(agent.category))} · Polly Tested ${esc(dateLabel(agent.gradedAt))}</p>
+        ${claim}
         <h1>${esc(agent.name)}</h1>
         <p class="lead">${esc(agent.description)}</p>
         <p class="meaning"><strong>Grade ${esc(agent.grade)}.</strong> ${esc(GRADE_MEANING[agent.grade])}</p>
@@ -614,7 +615,7 @@ export function joinPage({ member, error }) {
 
 export const FOUNDING_MEMBERS = 1000;
 
-export function mePage({ member, inviteCode, invited, streak }) {
+export function mePage({ member, inviteCode, invited, streak, claims = '' }) {
   const invite = siteUrl(`/i/${inviteCode}`);
   const founding = member.member_number && member.member_number <= FOUNDING_MEMBERS;
   return layout('Your perch', `
@@ -624,6 +625,7 @@ export function mePage({ member, inviteCode, invited, streak }) {
           <p>${member.member_number ? `<span class="tag ${founding ? 'founding' : ''}">${founding ? 'Founding member' : 'Member'} #${Number(member.member_number)}</span>` : ''}
             ${streak ? `<span class="tag">Game streak: ${Number(streak)}</span>` : ''}</p></div></div>
     </section>
+    ${claims}
     <section class="card">
       <h2>Bring a friend to the flock</h2>
       <p>Your personal invite link. ${invited ? `${Number(invited)} ${invited === 1 ? 'person has' : 'people have'} joined through it so far.` : "We'll count who joins through it."}</p>

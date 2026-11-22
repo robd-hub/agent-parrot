@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { connect } from '../src/db.js';
 import { createApp } from '../src/routes.js';
-import { checkForm, formFrom, looksLikeMcp, issueOf, testedFor } from '../src/test-requests.js';
+import { checkForm, formFrom, looksLikeMcp, asMcp, issueOf, testedFor } from '../src/test-requests.js';
 import { fromMcp, prepare } from '../src/directories.js';
 import { allAgents } from '../src/agents.js';
 
@@ -21,6 +21,8 @@ async function start() {
     if (url === 'https://grader.example/api/request/') {
       const body = JSON.parse(init.body);
       sent.push(body);
+      if (body.check && /locked/.test(body.agent)) return Response.json({ status: 'invalid', field: 'agent', error: 'That MCP server asks for a key, so Polly can\'t test it.' }, { status: 400 });
+      if (body.check && /^mcp:|\/mcp/.test(body.agent)) return Response.json({ status: 'ok', priceUsd: 10, regrade: false, agentType: 'mcp', mcp: { name: 'weather', tools: 3, usableTools: ['get_forecast', 'get_alerts'] } });
       if (body.check) return Response.json({ status: 'ok', priceUsd: 10, regrade: false });
       if (body.payment.includes('dead')) return Response.json({ status: 'invalid', field: 'payment', error: "That transaction wasn't found on Base." }, { status: 400 });
       return Response.json({ status: 'opened', request: ISSUE, priceUsd: 10 }, { status: 201 });
@@ -44,11 +46,16 @@ async function start() {
 
 const good = { agent: 'https://my-agent.example/api', whatItDoes: 'Answers questions about invoices.', name: 'Invoice Bot', payment: `https://basescan.org/tx/${TX}` };
 
-test('checkForm stops MCP servers, bad links and missing payments before anyone pays', () => {
+test('checkForm allows MCP servers and stops bad links and missing payments before anyone pays', () => {
   assert.equal(checkForm(formFrom(good)), null);
   assert.equal(checkForm(formFrom({ ...good, agent: 'https://platform.openserv.ai/agents/39' })), null);
   assert.equal(checkForm(formFrom({ ...good, agent: 'http://my-agent.example/api' })).field, 'agent');
-  assert.match(checkForm(formFrom({ ...good, agent: 'https://x.example/mcp' })).error, /MCP/);
+  assert.equal(checkForm(formFrom({ ...good, agent: 'https://x.example/mcp' })), null);
+  assert.equal(checkForm(formFrom({ ...good, agent: 'mcp:https://x.example/rpc' })), null);
+  assert.equal(checkForm(formFrom({ ...good, agent: 'mcp:http://x.example/rpc' })).field, 'agent');
+  assert.equal(asMcp('https://x.example/rpc'), 'mcp:https://x.example/rpc');
+  assert.equal(asMcp('https://x.example/mcp/v1'), 'https://x.example/mcp/v1');
+  assert.ok(looksLikeMcp('https://mcp.x.example/') && looksLikeMcp('mcp:https://x.example/'));
   assert.equal(checkForm(formFrom({ ...good, agent: 'https://x.example/v1/chat/completions' })).field, 'model');
   assert.equal(checkForm(formFrom({ ...good, whatItDoes: 'short' })).field, 'whatItDoes');
   assert.equal(checkForm(formFrom({ ...good, payment: 'paid!' })).field, 'payment');
@@ -60,7 +67,7 @@ test('checkForm stops MCP servers, bad links and missing payments before anyone 
   assert.equal(testedFor(`https://platform.openserv.ai/agents/${mp.marketplaceId}`)?.id, mp.id);
 });
 
-test('the form is prefilled from a listing and warns about MCP servers', async () => {
+test('the form is prefilled from a listing, MCP servers included', async () => {
   const s = await start();
   try {
     const page = await s.req(`/request?ref=${encodeURIComponent('mcp:com.acme/weather')}`);
@@ -68,7 +75,8 @@ test('the form is prefilled from a listing and warns about MCP servers', async (
     assert.match(page.text, /Request a Polly Test/);
     assert.match(page.text, /value="https:\/\/weather\.acme\.example\/mcp"/);
     assert.match(page.text, /Weather forecasts for anywhere<\/textarea>/);
-    assert.match(page.text, /can(&#39;|')t test MCP servers yet/);
+    assert.match(page.text, /It(&#39;|')s an MCP server/);
+    assert.match(page.text, /Check it first \(free\)/);
     assert.match(page.text, /buy\.stripe\.example/);
     const mp = allAgents().find((a) => a.marketplaceId);
     const retest = await s.req(`/request?ref=${encodeURIComponent(mp.id)}`);
@@ -83,10 +91,17 @@ test('the form is prefilled from a listing and warns about MCP servers', async (
 test('a request goes to the grader, gets a status page, and shows the grade request state', async () => {
   const s = await start();
   try {
-    const mcp = await s.req('/request', { form: { ...good, agent: 'https://weather.acme.example/mcp' } });
-    assert.equal(mcp.status, 400);
-    assert.match(mcp.text, /can(&#39;|')t test MCP servers yet/);
-    assert.equal(s.sent.length, 0, 'nothing is sent to the grader for an MCP server');
+    // "Check it first" asks the grader to look at the MCP server, with no payment, and shows what it found.
+    const check = await s.req('/request', { form: { ...good, payment: '', agent: 'https://weather.acme.example/mcp', intent: 'check' } });
+    assert.equal(check.status, 200);
+    assert.match(check.text, /Polly can test it/);
+    assert.match(check.text, /<code>get_forecast<\/code>/);
+    assert.equal(s.sent.at(-1).check, true);
+    assert.equal(s.sent.at(-1).payment, undefined);
+    const locked = await s.req('/request', { form: { ...good, payment: '', agent: 'https://locked.example/mcp', intent: 'check' } });
+    assert.equal(locked.status, 400);
+    assert.match(locked.text, /Check failed, nothing was paid/);
+    assert.match(locked.text, /asks for a key/);
 
     const bad = await s.req('/request', { form: { ...good, payment: `0xdead${'0'.repeat(60)}` } });
     assert.equal(bad.status, 400);
@@ -133,7 +148,8 @@ test('the wallet quote asks the grader for the price without a payment', async (
     assert.equal(s.sent.at(-1).check, true);
     assert.equal(s.sent.at(-1).payment, undefined);
     const mcp = await s.req('/request/quote', { form: { agent: 'https://x.example/mcp', whatItDoes: good.whatItDoes } });
-    assert.equal(mcp.status, 400);
+    assert.equal(mcp.status, 200);
+    assert.deepEqual(JSON.parse(mcp.text).mcp, { name: 'weather', tools: 3, usable: ['get_forecast', 'get_alerts'] });
   } finally {
     s.close();
   }

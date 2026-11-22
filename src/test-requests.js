@@ -35,21 +35,27 @@ const clean = (v, max) => String(v ?? '').replace(/\r/g, '').trim().slice(0, max
 export const FIELDS = { agent: 500, model: 100, whatItDoes: 2000, name: 80, task: 1000, contact: 200, payment: 300 };
 export const formFrom = (body = {}) => Object.fromEntries(Object.entries(FIELDS).map(([k, max]) => [k, clean(body[k], max)]));
 
-// The grader tests an OpenServ marketplace agent, or a public https address that answers POST {"prompt": "..."}
-// (or an OpenAI-style /chat/completions address with a model name). It has no MCP adapter, so an MCP server would be
-// paid for and then fail. We stop that here, before anyone pays.
+// The grader tests an OpenServ marketplace agent, a public https address that answers POST {"prompt": "..."}, an
+// OpenAI-style /chat/completions address (with a model name), or a remote MCP server (agent-report-card PR #57).
+// It treats an address as MCP when a path part is /mcp, it ends in /sse, or its host starts with mcp.; any other MCP
+// address is sent as "mcp:<address>". Its check (check: true) connects to an MCP server before anyone pays.
 export function looksLikeMcp(link) {
+  const l = String(link ?? '').trim().split(/\s+/)[0] ?? '';
+  if (/^mcp:/i.test(l)) return true;
   try {
-    const u = new URL(link.split(/\s+/)[0]);
-    return /\/(mcp|sse)\/?$/i.test(u.pathname) || /(^|\.)mcp\./i.test(u.hostname);
+    const u = new URL(l);
+    return /(^|\/)mcp(\/|$)/i.test(u.pathname) || /\/sse\/?$/i.test(u.pathname) || /(^|\.)mcp\./i.test(u.hostname);
   } catch {
     return false;
   }
 }
 
+// The address as the grader should get it: an MCP server it wouldn't spot by its address gets "mcp:" in front.
+export const asMcp = (link) => (!link || looksLikeMcp(link) ? link : `mcp:${link}`);
+
 // What we can tell before calling the grader. Returns {field, error} or null.
 export function checkForm(f, { needPayment = true } = {}) {
-  const link = f.agent.split(/\s+/)[0] ?? '';
+  const link = (f.agent.split(/\s+/)[0] ?? '').replace(/^mcp:/i, '');
   const openserv = /^\d{1,7}$/.test(link) || /openserv/i.test(link);
   if (!link) return { field: 'agent', error: 'Tell us where to find your agent.' };
   if (!openserv) {
@@ -58,9 +64,6 @@ export function checkForm(f, { needPayment = true } = {}) {
       u = new URL(link);
     } catch {}
     if (!u || u.protocol !== 'https:') return { field: 'agent', error: 'Use your agent\'s OpenServ marketplace link, or a public https address.' };
-    if (looksLikeMcp(link)) {
-      return { field: 'agent', error: "That looks like an MCP server. Polly can't test MCP servers yet: give an address that answers a POST with {\"prompt\": \"...\"}, or an OpenAI-style /chat/completions address. Nothing has been paid." };
-    }
     if (/\/chat\/completions\/?$/.test(u.pathname) && !f.model) return { field: 'model', error: 'OpenAI-style addresses also need the model name.' };
   }
   if (f.whatItDoes.length < 10) return { field: 'whatItDoes', error: 'Tell us in a sentence what your agent does, so Polly can pick fair test tasks.' };
@@ -109,9 +112,19 @@ export async function readIssue(url, { fetchFn = fetch, githubToken } = {}) {
   }
 }
 
+// What the grader's check said, kept to what we show: the price, and for an MCP server its name and tools.
+export function quoteOf(reply) {
+  const m = reply.agentType === 'mcp' && reply.mcp && typeof reply.mcp === 'object' ? reply.mcp : null;
+  const names = (v) => (Array.isArray(v) ? v.map((t) => String(typeof t === 'object' && t ? t.name ?? '' : t).slice(0, 80)).filter(Boolean).slice(0, 30) : []);
+  return {
+    status: 'ok', priceUsd: Number(reply.priceUsd), regrade: Boolean(reply.regrade),
+    mcp: m ? { name: String(m.name ?? '').slice(0, 100), tools: Array.isArray(m.tools) ? m.tools.length : Number(m.tools) || 0, usable: names(m.usableTools) } : null,
+  };
+}
+
 // A tested agent the grader would call by this link (marketplace number or the same address).
 export function testedFor(link) {
-  const l = String(link ?? '').trim().split(/\s+/)[0] ?? '';
+  const l = (String(link ?? '').trim().split(/\s+/)[0] ?? '').replace(/^mcp:/i, '');
   if (!l) return null;
   const mp = /^\d{1,7}$/.test(l) ? Number(l) : /openserv/i.test(l) ? Number((/agents?\/(\d{1,7})(?!\d)/i.exec(l) ?? [])[1]) : NaN;
   const same = (a, b) => String(a ?? '').replace(/\/+$/, '').toLowerCase() === b.replace(/\/+$/, '').toLowerCase();
@@ -126,9 +139,10 @@ export async function prefill(db, query) {
   const c = await claimable(db, ref).catch(() => null);
   if (!c) return out;
   const tested = c.tested ?? null;
-  const link = tested ? (tested.url || '') : (c.row?.endpoint || c.row?.url || '');
+  const isMcp = !tested && c.row?.source === 'mcp' && Boolean(c.row?.endpoint);
+  const link = tested ? (tested.url || '') : isMcp ? asMcp(c.row.endpoint) : (c.row?.endpoint || c.row?.url || '');
   out.agentRef = c.ref;
-  out.from = { name: c.name, path: c.path, tested, mcp: c.row?.source === 'mcp' || looksLikeMcp(link) };
+  out.from = { name: c.name, path: c.path, tested, mcp: isMcp || looksLikeMcp(link) };
   out.form.agent ||= link;
   out.form.name ||= c.name;
   if (!out.form.whatItDoes) out.form.whatItDoes = clean(tested?.description || c.row?.description, FIELDS.whatItDoes);
@@ -171,10 +185,26 @@ export function testRequestRoutes({ db, config, fetchFn = fetch, now = () => new
     const { payment, ...rest } = f;
     const reply = await sendToGrader(grader, { ...rest, check: true });
     if (reply.status === 'ok' && [GRADE_PRICE_USD, REGRADE_PRICE_USD].includes(Number(reply.priceUsd))) {
-      return res.json({ status: 'ok', priceUsd: Number(reply.priceUsd), regrade: Boolean(reply.regrade), payTo: PAY_ADDRESS, usdc: USDC_ON_BASE });
+      return res.json({ ...quoteOf(reply), payTo: PAY_ADDRESS, usdc: USDC_ON_BASE });
     }
     res.status(reply.status === 'invalid' ? 400 : 503).json({ status: reply.status === 'invalid' ? 'invalid' : 'unavailable', field: reply.field, error: reply.error ?? "We couldn't check your details just now, so nothing was paid." });
   });
+
+  // "Check it first (free)": the same check without JavaScript, before paying by pasting a transaction.
+  const checkFirst = async (req, res, f, agentRef) => {
+    const bad = checkForm(f, { needPayment: false });
+    let check;
+    if (bad) check = { ok: false, ...bad };
+    else {
+      const { payment, ...rest } = f;
+      const reply = await sendToGrader(grader, { ...rest, check: true });
+      check = reply.status === 'ok' && [GRADE_PRICE_USD, REGRADE_PRICE_USD].includes(Number(reply.priceUsd))
+        ? { ok: true, ...quoteOf(reply) }
+        : { ok: false, field: reply.field, error: reply.error ?? "We couldn't check your agent just now. Nothing was paid; try again in a minute." };
+    }
+    res.status(check.ok ? 200 : 400);
+    await render(req, res, { form: f, agentRef, check, field: check.ok ? undefined : check.field, tested: testedFor(f.agent) });
+  };
 
   app.post('/request', async (req, res) => {
     const f = formFrom(req.body);
@@ -184,6 +214,7 @@ export function testRequestRoutes({ db, config, fetchFn = fetch, now = () => new
       await render(req, res, { form: f, agentRef, error, field, tested: testedFor(f.agent), fallback: status >= 500 });
     };
     if (tooMany(req)) return again(429, 'Too many tries. Wait a few minutes and try again (you never pay twice for one transaction).');
+    if (req.body.intent === 'check') return checkFirst(req, res, f, agentRef);
     const bad = checkForm(f);
     if (bad) return again(400, bad.error, bad.field);
     const reply = await sendToGrader(grader, f);

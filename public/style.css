@@ -446,3 +446,34 @@ th { font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; color:
 }
 .cmp .ok { color: var(--green-ink); }
 .cmp .bad { color: var(--red); }
+
+/* Member reviews */
+#reviews { scroll-margin-top: 90px; }
+.reviews .btn + .muted { margin-left: 10px; }
+.stars { position: relative; display: inline-block; line-height: 1; font-size: 1rem; letter-spacing: 1px; vertical-align: -1px; }
+.stars::before { content: '★★★★★'; color: var(--line); }
+.stars-fill { position: absolute; inset: 0 auto 0 0; overflow: hidden; white-space: nowrap; }
+.stars-fill::before { content: '★★★★★'; color: var(--yellow); }
+.stars.lg { font-size: 1.5rem; }
+.tag-rating { background: color-mix(in srgb, var(--yellow) 22%, transparent); }
+.reviews .review-summary { display: flex; align-items: center; gap: 12px; margin: 12px 0 16px; flex-wrap: wrap; }
+.review-avg { font-size: 2.2rem; font-weight: 800; line-height: 1; }
+.review-write > summary { list-style: none; margin-bottom: 12px; }
+.review-write > summary::-webkit-details-marker { display: none; }
+.review-form { max-width: 40rem; }
+.review-form textarea { width: 100%; font: inherit; padding: 10px 12px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); resize: vertical; }
+.star-input { border: 0; padding: 0; margin: 0; }
+.star-input legend { font-weight: 700; margin-bottom: 4px; padding: 0; }
+.star-row { display: flex; flex-direction: row-reverse; justify-content: flex-end; gap: 2px; }
+.star-row input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.star-row label { font-size: 2rem; line-height: 1; color: var(--line); cursor: pointer; padding: 2px; }
+.star-row label:hover, .star-row label:hover ~ label, .star-row input:checked ~ label { color: var(--yellow); }
+.star-row input:focus-visible + label { outline: 2px solid var(--green); border-radius: 6px; }
+.review-list { list-style: none; padding: 0; margin: 16px 0 0; }
+.review { padding: 14px 0; border-top: 1px solid var(--line); }
+.review.mine { background: color-mix(in srgb, var(--yellow) 8%, transparent); padding-left: 10px; padding-right: 10px; border-radius: 10px; }
+.review-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.review-body p { margin: 8px 0 0; overflow-wrap: anywhere; }
+.review-report { margin-top: 6px; font-size: .82rem; color: var(--muted); }
+.review-report summary { cursor: pointer; }
+.review-report form { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; }

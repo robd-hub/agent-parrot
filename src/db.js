@@ -128,6 +128,36 @@ const SCHEMA = `
     sent_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (issue_id, member_id)
   );
+  -- Member reviews: a 1 to 5 star rating and a short note, one per member per agent. agent_ref is a tested agent's
+  -- id ("coder") or a listed agent's "source:id" (the same refs /compare uses). Separate from grades, which never change.
+  CREATE TABLE IF NOT EXISTS reviews (
+    id         SERIAL PRIMARY KEY,
+    agent_ref  TEXT NOT NULL,
+    member_id  TEXT NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    stars      INTEGER NOT NULL CHECK (stars BETWEEN 1 AND 5),
+    body       TEXT NOT NULL DEFAULT '',
+    -- Hidden after enough reports, or by the organiser. Hidden reviews don't count in the average.
+    hidden     BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (agent_ref, member_id)
+  );
+  CREATE INDEX IF NOT EXISTS reviews_ref ON reviews (agent_ref);
+  -- Members reporting a review (spam, rude, fake). One report per member per review.
+  CREATE TABLE IF NOT EXISTS review_reports (
+    review_id  INTEGER NOT NULL REFERENCES reviews (id) ON DELETE CASCADE,
+    member_id  TEXT NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    reason     TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (review_id, member_id)
+  );
+  -- Every review save and report, for the rate limits (deleting and posting again still counts).
+  CREATE TABLE IF NOT EXISTS review_actions (
+    member_id  TEXT NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    kind       TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+  CREATE INDEX IF NOT EXISTS review_actions_member ON review_actions (member_id, created_at);
   -- Simple on/off switches the organiser flips from the admin pages, such as pausing The Daily Hallucination.
   CREATE TABLE IF NOT EXISTS settings (
     key   TEXT PRIMARY KEY,
@@ -378,6 +408,61 @@ export function openDb(client) {
         ? Object.fromEntries((await q('SELECT maker_key, count(*)::int AS n FROM listed_agents WHERE maker_key = ANY($1::text[]) GROUP BY maker_key', [keys])).map((r) => [r.maker_key, r.n]))
         : {}),
       counts: () => q('SELECT source, count(*) FILTER (WHERE tested_id IS NULL)::int AS untested, count(*)::int AS total FROM listed_agents GROUP BY source ORDER BY source'),
+    },
+
+    // Member reviews (see src/reviews.js).
+    reviews: {
+      // Add or change a member's review. Returns the review's id.
+      async save(ref, memberId, stars, body) {
+        await q("INSERT INTO review_actions (member_id, kind) VALUES ($1, 'save')", [memberId]);
+        return (await one(
+          `INSERT INTO reviews (agent_ref, member_id, stars, body) VALUES ($1, $2, $3, $4)
+           ON CONFLICT (agent_ref, member_id) DO UPDATE SET stars = excluded.stars, body = excluded.body, updated_at = now()
+           RETURNING id`, [ref, memberId, stars, body])).id;
+      },
+      remove: (ref, memberId) => q('DELETE FROM reviews WHERE agent_ref = $1 AND member_id = $2', [ref, memberId]),
+      get: (id) => one('SELECT * FROM reviews WHERE id = $1', [id]),
+      mine: (ref, memberId) => one('SELECT * FROM reviews WHERE agent_ref = $1 AND member_id = $2', [ref, memberId]),
+      // Visible reviews of one agent, newest first, with the reviewer's name (never their email or id).
+      list: (ref, viewerId, limit = 20) =>
+        q(`SELECT r.id, r.stars, r.body, r.created_at, r.updated_at, m.name, m.first_name, m.last_name, m.role, r.hidden,
+             (r.member_id = $3) AS mine
+           FROM reviews r JOIN members m ON m.id = r.member_id
+           WHERE r.agent_ref = $1 AND (NOT r.hidden OR r.member_id = $3) ORDER BY r.updated_at DESC LIMIT $2`, [ref, limit, viewerId ?? '']),
+      // Average and count for each ref asked about, counting visible reviews only: { ref: { count, avg } }.
+      async summaries(refs) {
+        const list = [...new Set(refs.filter(Boolean))];
+        if (!list.length) return {};
+        const rows = await q(`SELECT agent_ref, count(*)::int AS count, avg(stars)::float AS avg FROM reviews
+          WHERE agent_ref = ANY($1) AND NOT hidden GROUP BY agent_ref`, [list]);
+        return Object.fromEntries(rows.map((r) => [r.agent_ref, { count: r.count, avg: r.avg }]));
+      },
+      // Saves and reports by one member (or everyone, with null) in the last so many seconds.
+      recentActions: async (memberId, kind, seconds) => (await one(
+        `SELECT count(*)::int AS n FROM review_actions WHERE ($1::text IS NULL OR member_id = $1) AND kind = $2
+           AND created_at > now() - make_interval(secs => $3)`, [memberId, kind, seconds])).n,
+      // A member reports a review. At `hideAt` reports from different members it is hidden until the organiser looks.
+      async report(id, memberId, reason, hideAt) {
+        await q("INSERT INTO review_actions (member_id, kind) VALUES ($1, 'report')", [memberId]);
+        await q('INSERT INTO review_reports (review_id, member_id, reason) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING', [id, memberId, reason]);
+        const { n } = await one('SELECT count(*)::int AS n FROM review_reports WHERE review_id = $1', [id]);
+        if (n >= hideAt) await q('UPDATE reviews SET hidden = true WHERE id = $1', [id]);
+        return n;
+      },
+      // For the organiser: reported reviews first, then the newest.
+      forAdmin: () =>
+        q(`SELECT r.*, m.name, m.email, COALESCE(x.n, 0)::int AS reports, x.reasons
+           FROM reviews r JOIN members m ON m.id = r.member_id
+           LEFT JOIN (SELECT review_id, count(*) AS n, string_agg(DISTINCT reason, ', ') AS reasons FROM review_reports GROUP BY review_id) x ON x.review_id = r.id
+           ORDER BY COALESCE(x.n, 0) DESC, r.updated_at DESC LIMIT 200`),
+      setHidden: (id, hidden) => q('UPDATE reviews SET hidden = $2 WHERE id = $1', [id, hidden]),
+      clearReports: (id) => q('DELETE FROM review_reports WHERE review_id = $1', [id]),
+      delete: (id) => q('DELETE FROM reviews WHERE id = $1', [id]),
+      // When a listed agent turns out to be one of our tested agents, its reviews move to the tested agent's page.
+      adopt: () =>
+        q(`UPDATE reviews r SET agent_ref = l.tested_id FROM listed_agents l
+           WHERE l.tested_id IS NOT NULL AND r.agent_ref = l.source || ':' || l.source_id
+             AND NOT EXISTS (SELECT 1 FROM reviews x WHERE x.agent_ref = l.tested_id AND x.member_id = r.member_id)`),
     },
 
     game: {

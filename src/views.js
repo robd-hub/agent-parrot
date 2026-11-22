@@ -1,6 +1,7 @@
 // Page HTML, built from template strings. Escape everything that isn't written here by hand with esc().
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { CATEGORIES, categoryName, GRADE_MEANING, verdict } from './agents.js';
+import { ratingTag } from './review-views.js';
 
 export const esc = (v) =>
   String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -105,12 +106,12 @@ const verdictTag = (grade) => {
 };
 const honestyTag = (h) => (h === 'passed' ? '<span class="tag tag-pass">Honest</span>' : h === 'failed' ? '<span class="tag tag-fail">Made it up</span>' : '');
 
-export function agentCard(a) {
+export function agentCard(a, rating) {
   return `<a class="agent-card" href="/agents/${esc(a.id)}">
       ${gradeBadge(a.grade)}
       <span class="agent-main"><strong>${esc(a.name)}</strong><span class="muted small">${esc(categoryName(a.category))} · Squawk Score ${Number(a.score)}</span>
         <span class="agent-desc">${esc(a.description)}</span></span>
-      <span class="agent-tags">${verdictTag(a.grade)}${honestyTag(a.honesty)}</span>
+      <span class="agent-tags">${verdictTag(a.grade)}${honestyTag(a.honesty)}${ratingTag(rating)}</span>
     </a>`;
 }
 
@@ -268,7 +269,7 @@ export function articleCard(x) {
 
 // ----- Directory, agent pages and the Pecking Order -----
 
-export function directoryPage({ agents, listings, category, notice, error, signedIn }) {
+export function directoryPage({ agents, listings, ratings = {}, category, notice, error, signedIn }) {
   const cats = CATEGORIES.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
   return layout('Tested AI agents', `
     <section class="page-head">
@@ -278,7 +279,7 @@ export function directoryPage({ agents, listings, category, notice, error, signe
         Tap any agent to see its answers.</p>
     </section>
     ${categoryTabs('/agents', category)}
-    <div class="agent-list">${agents.map(agentCard).join('') || '<p class="muted">No tested agents in this category yet.</p>'}</div>
+    <div class="agent-list">${agents.map((a) => agentCard(a, ratings[a.id])).join('') || '<p class="muted">No tested agents in this category yet.</p>'}</div>
     ${listings.length ? `<section class="section">
       <h2>Not Polly Tested yet</h2>
       <p class="muted">Listed so you can find them. Polly hasn't checked their work, so there's no grade.</p>
@@ -332,7 +333,7 @@ export function historyBlock(agent) {
   </section>`;
 }
 
-export function agentPage({ agent, place, total, listed = '', details = '' }) {
+export function agentPage({ agent, place, total, listed = '', details = '', rating = '', reviews = '' }) {
   const tasks = agent.tasks.map((t) => `
       <article class="task">
         <div class="task-head"><span class="task-score score-${t.score === null ? 'none' : t.score >= 70 ? 'ok' : 'bad'}">${t.score === null ? '…' : Number(t.score)}</span>
@@ -354,6 +355,7 @@ export function agentPage({ agent, place, total, listed = '', details = '' }) {
           <span><b>#${Number(place)}</b> of ${Number(total)} in the <a href="/pecking-order">Pecking Order</a></span>
           <span>${agent.honesty === 'failed' ? '<b class="bad">Made something up</b> on the honesty check' : agent.honesty === 'passed' ? '<b class="ok">Honest</b> on the honesty check' : 'Honesty check pending'}</span>
           ${agent.provisional ? '<span class="muted">Provisional: some judges still scoring</span>' : ''}
+          ${rating}
         </div>
         ${listed}
         <div class="hero-actions">
@@ -370,6 +372,7 @@ export function agentPage({ agent, place, total, listed = '', details = '' }) {
       <h2>What Polly asked, and how it did</h2>
       ${tasks}
     </section>
+    ${reviews}
     <section class="card cta-card">
       <img src="/parrot.svg" width="56" height="56" alt="">
       <div><h2>Did you build ${esc(agent.name)}?</h2>
@@ -670,6 +673,7 @@ export function privacyPage({ contactEmail }) {
       <li>Whether you want The Squawk, our weekly email.</li>
       <li>Your Spot the Hallucination results, so we can show your streak.</li>
       <li>Agents you suggest for the directory.</li>
+      <li>Reviews you write, and reviews you report. Reviews show your first name and the first letter of your last name, never your email.</li>
       <li>The tag on the link you first arrived from and who invited you, so we know which posts bring people in.</li></ul>
     <h2>What we don't do</h2>
     <p>We never post on your behalf, never sell your details and never show your email to other members. We don't use advertising trackers.</p>

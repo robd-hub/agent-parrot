@@ -19,6 +19,12 @@ export function parseRef(ref) {
 
 // Everything the compare table needs about one agent, tested or listed.
 export async function loadProfile(db, ref) {
+  const profile = await loadBase(db, ref);
+  if (profile) profile.reviews = (await db.reviews.summaries([profile.ref]))[profile.ref] ?? { count: 0, avg: null };
+  return profile;
+}
+
+async function loadBase(db, ref) {
   const p = parseRef(ref);
   if (!p) return null;
   if (!p.source) {
@@ -38,7 +44,7 @@ export async function loadProfile(db, ref) {
   if (!SOURCES[p.source]) return null;
   const r = await db.listed.get(p.source, p.id);
   if (!r) return null;
-  if (r.tested_id && agentById(r.tested_id)) return loadProfile(db, r.tested_id);
+  if (r.tested_id && agentById(r.tested_id)) return loadBase(db, r.tested_id);
   return {
     kind: 'listed', ref: listedRef(r), name: r.name, description: r.description, path: listedPath(r), row: r, rows: [r],
     places: [{ name: SOURCES[r.source].name, url: r.source === 'mcp' ? SOURCES.mcp.home : null, detail: r.source === 'erc8004' ? `#${r.source_id.split(':')[1]}${r.chain ? ` on ${r.chain}` : ''}` : null }],

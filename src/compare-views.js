@@ -1,5 +1,6 @@
 // The compare page (src/compare.js): two agents side by side, one row per thing worth comparing.
 import { esc, layout, gradeBadge, dateLabel } from './views.js';
+import { ratingCell } from './review-views.js';
 import { GRADE_MEANING, categoryName } from './agents.js';
 import { makerPath } from './makers.js';
 import { securityFlags } from './security.js';
@@ -86,6 +87,7 @@ const cells = {
     const path = makerPath(p.maker.key);
     return `${path ? `<a href="${esc(path)}">${esc(p.maker.name)}</a>` : esc(p.maker.name)}${p.rep ? reputationBlock(p.rep, { compact: true }) : `<br>${small('No reputation score yet')}`}`;
   },
+  reviews: (p) => ratingCell(p.reviews),
   places(p) {
     if (!p.places.length) return muted('Nowhere else we know of');
     return p.places.map((l) => `<span class="tag">${esc(l.name)}${l.detail ? ` <span class="muted">${esc(l.detail)}</span>` : ''}</span>`).join(' ');
@@ -105,6 +107,8 @@ const ROWS = [
   ['privacy', 'Data privacy'],
   ['maker', 'Maker and reputation', (a, b) => better(a.rep?.score, b.rep?.score)],
   ['places', 'Where it is listed', (a, b) => better(a.places.length, b.places.length)],
+  // Only once both have a few reviews, so one early review doesn't decide it.
+  ['reviews', 'Member reviews', (a, b) => (a.reviews?.count >= 3 && b.reviews?.count >= 3 ? better(Math.round(a.reviews.avg * 10), Math.round(b.reviews.avg * 10)) : null)],
 ];
 
 function head(p, other) {
@@ -127,7 +131,8 @@ function table(a, b) {
     }).join('')}
   </div>
   <p class="muted small">"Better" marks the higher Squawk Score, uptime, maker reputation and number of listings, and the lower price,
-    only where both agents have a number. Health, price and security come from each agent's last health check. Licence and privacy
+    only where both agents have a number. For member reviews it marks the higher average once both have at least 3 reviews; reviews are
+    members' opinions and are kept apart from the Polly grade. Health, price and security come from each agent's last health check. Licence and privacy
     say "not known" unless the agent's code or its maker tells us.</p>`;
 }
 

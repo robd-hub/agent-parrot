@@ -5,7 +5,7 @@ Rules and commands are in `CLAUDE.md`. Update this file when something below cha
 
 ## Live now
 
-- Repo `robd-hub/agent-parrot`, default branch `main`. `npm test`: 47 tests, all passing.
+- Repo `robd-hub/agent-parrot`, default branch `main`. `npm test`: 53 tests, all passing.
 - Vercel project `agent-parrot` (team designimp-projects, Hobby plan), linked to the repo, deploys `main`
   automatically: https://agent-parrot.vercel.app. Behind Vercel's login until a custom domain is added,
   so the public can't see it yet.
@@ -39,13 +39,23 @@ Rules and commands are in `CLAUDE.md`. Update this file when something below cha
   `/agents` and `/listed` pages. Agent pages also get Licence and Data privacy rows (`src/openness.js`): the licence
   comes from the GitHub repo's licence (read weekly) or `licence` in `data/agent-facts.json`; privacy shows a policy
   only from `privacy`/`privacyUrl` in that file, plus plain facts (where data goes, x402 puts the wallet on chain).
-  Everything else says "not known". No sign-in needed. Reviews and ratings wait for the sign-in apps.
+  Everything else says "not known". No sign-in needed. (Merged as #15.)
+- Member reviews and ratings (branch `claude/reviews-ratings`, `src/reviews.js`, `src/review-views.js`): signed-in, joined
+  members give any tested or listed agent 1 to 5 stars and an optional note (up to 1,000 characters), one per member per
+  agent, and can edit or delete it. Average and count show on agent pages (tested and listed), `/agents` and `/listed`
+  cards, maker pages and a new "Member reviews" row on `/compare` ("Better" only once both have 3+ reviews). Reviews never
+  change grades, the Pecking Order or the maker reputation score (the maker page shows the member average beside it,
+  labelled as not counted). Abuse protection: 10 saves an hour per member and 300 an hour site-wide, 20 reports a day,
+  hidden after reports from 3 members, makers signed in with GitHub can't review their own agent, names shown as
+  "Ada L.", text escaped, invisible characters stripped, at most 2 links. `/admin/reviews` lists reported reviews first
+  with Hide, Show again and Delete. Reviews on a listing move to the tested agent's page once it is matched (daily sync).
+  Live only once a sign-in option is set up in Vercel: none is yet (no Google, GitHub, LinkedIn or email keys).
 
 ## Waiting on Rob
 
 1. Buy the domains agentparrot.ai and agentparrots.com (about $170, Rob buys them on Cloudflare himself).
    Adding one to Vercel is what makes the site public.
-2. Sign-in apps (Google, GitHub, LinkedIn), the Claude API key and the email settings in `.env.example`.
+2. Sign-in apps (Google, GitHub, LinkedIn) and the email settings in `.env.example`. Reviews need at least one of these. The Claude API key is in (22 Nov 2026).
    Rob adds the values in Vercel himself. Never ask for them in chat and never put them in a file or PR.
 3. Move to Vercel Pro (about $20 a month) once the site takes money.
 4. Agent Parrot LinkedIn page, 20 builders to invite, a launch date.

@@ -43,7 +43,9 @@ export function securityFlags(r) {
 
   if (r.details?.needsKey || /needs a key/i.test(note)) flags.push({ level: 'info', text: 'Needs a key or sign-in to use' });
   else if (r.checked_at && r.up) flags.push({ level: 'info', text: 'Open to anyone: no key needed' });
-  if (r.x402 || /payment/i.test(note)) flags.push({ level: 'info', text: 'Takes payment (x402)' });
+  if (r.health?.price?.display) flags.push({ level: 'info', text: `Asks for payment: ${r.health.price.display}` });
+  else if (r.x402 || /payment/i.test(note)) flags.push({ level: 'info', text: 'Takes payment (x402)' });
+  if (r.activity?.archived) flags.push({ level: 'warn', text: 'Its code repository is archived: the maker has stopped working on it' });
 
   const tools = r.health?.tools;
   if (!r.checked_at) flags.push({ level: 'info', text: 'Tool powers not known yet: not health checked' });

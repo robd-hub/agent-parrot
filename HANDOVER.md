@@ -5,7 +5,7 @@ Rules and commands are in `CLAUDE.md`. Update this file when something below cha
 
 ## Live now
 
-- Repo `robd-hub/agent-parrot`, default branch `main`. `npm test`: 39 tests, all passing.
+- Repo `robd-hub/agent-parrot`, default branch `main`. `npm test`: 43 tests, all passing.
 - Vercel project `agent-parrot` (team designimp-projects, Hobby plan), linked to the repo, deploys `main`
   automatically: https://agent-parrot.vercel.app. Behind Vercel's login until a custom domain is added,
   so the public can't see it yet.
@@ -27,12 +27,15 @@ Rules and commands are in `CLAUDE.md`. Update this file when something below cha
 | #8 | Light by default (dark only when someone clicks the moon, never from the device setting); `/news` split by day under Today / Yesterday / date headings |
 | #10 | Key details on every agent page (maker, links, first listed, how to connect, model, pricing), pages for each `/listed` agent and maker, maker reputation score (`src/makers.js`) |
 | #11 | Health checks (`src/health.js`): each listed agent visited at most once a day; Up/Down, response time, uptime % and tools on pages; "only agents that answered" filter; uptime in maker reputation. Cut to twice a day (01:00, 13:00 UTC) to save free-plan use |
+| #13 | Grade history chart on each tested agent's page (every past Agent Report Card run) and a Security section (HTTPS, key, payment, tool powers) |
 
 ## In review
 
-- Grade history and security flags (branch `claude/grade-history-security`): a score-over-time chart on each
-  tested agent's page (from every past run in Agent Report Card), and a Security section on agent pages (HTTPS,
-  key, payment, tool powers). Only Coder and Cheap First have more than one run so far.
+- Prices and activity (branch `claude/prices-activity`): the real x402 price per call (read from the agent's own
+  402 answer during the health check, never paid), GitHub code activity (`src/activity.js`: last change, stars,
+  open issues, archived, weekly per repo) and last on-chain activity for ERC-8004 agents. Recent activity counts in
+  maker reputation. Paid jobs show "Not tracked" (no public source). Optional `GITHUB_TOKEN` in Vercel (Rob adds it)
+  lifts GitHub from about 25 repos a run to 400.
 
 ## Waiting on Rob
 

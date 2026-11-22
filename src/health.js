@@ -87,6 +87,40 @@ const header = (res, name) => (typeof res.headers?.get === 'function' ? res.head
 const verdict = (status) => (status === 401 || status === 403 ? 'Answered, but needs a key'
   : status === 402 ? 'Answered, and asks for payment' : null);
 
+// The price an x402 agent asks for, read from its "402 Payment Required" answer. We never pay: we only read the
+// offer. Version 1 puts it in the body; version 2 in a base64 PAYMENT-REQUIRED header. Amounts are in the token's
+// smallest unit, so they're only turned into dollars for tokens we know (USDC has 6 decimals).
+const USDC = new Set(['0x833589fcd6edb6e08f4c7c32d4f71b54bda02913', '0x036cbd53842c5426634e7929541ec2318f3dcf7e', '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+  '0x3c499c542cef5e3811e1192ce70d8cc03d5c3359', '0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d']);
+const NETWORKS = { base: 'Base', 'base-sepolia': 'Base Sepolia (test)', ethereum: 'Ethereum', polygon: 'Polygon', solana: 'Solana', avalanche: 'Avalanche',
+  'eip155:8453': 'Base', 'eip155:84532': 'Base Sepolia (test)', 'eip155:1': 'Ethereum', 'eip155:137': 'Polygon', 'eip155:43114': 'Avalanche' };
+export function x402Price(res) {
+  let offer = null;
+  try {
+    offer = JSON.parse(res.text);
+  } catch { /* not JSON */ }
+  if (!Array.isArray(offer?.accepts)) {
+    const h = header(res, 'payment-required');
+    try {
+      offer = h ? JSON.parse(Buffer.from(h, 'base64').toString('utf8')) : offer;
+    } catch { /* not base64 JSON */ }
+  }
+  const a = Array.isArray(offer?.accepts) ? offer.accepts[0] : null;
+  const raw = String(a?.maxAmountRequired ?? a?.amount ?? '');
+  if (!a || !/^[0-9]{1,30}$/.test(raw)) return null;
+  const asset = String(a.asset ?? '').toLowerCase();
+  const network = String(a.network ?? '');
+  const where = NETWORKS[network] ?? (clip(network, 30) || null);
+  const usdc = USDC.has(asset) || /^(usd ?coin|usdc)$/i.test(a.extra?.name ?? '');
+  const dollars = usdc ? Number(raw) / 1e6 : null;
+  const money = dollars === null ? '' : dollars < 0.01 ? String(Number(dollars.toFixed(6))) : dollars.toFixed(2);
+  return {
+    amount: raw, usd: dollars, network: where, scheme: clip(a.scheme, 20) || null,
+    display: usdc ? `$${money} USDC per call${where ? ` on ${where}` : ''}`
+      : `${raw} units of token ${clip(asset, 12)}${where ? ` on ${where}` : ''} per call (token not recognised, so no dollar figure)`,
+  };
+}
+
 export async function checkMcp(endpoint, { fetchFn = fetch } = {}) {
   const started = Date.now();
   const post = (body, session) => visit(fetchFn, endpoint, {
@@ -97,7 +131,7 @@ export async function checkMcp(endpoint, { fetchFn = fetch } = {}) {
   const hello = await post({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'AgentParrot', version: '1.0' } } });
   const latency = Date.now() - started;
   const locked = verdict(hello.status);
-  if (locked) return { up: true, latency, note: locked };
+  if (locked) return { up: true, latency, note: locked, price: hello.status === 402 ? x402Price(hello) : null };
   if (hello.status === 405 || hello.status === 404) {
     // Older MCP servers talk over a long-lived event stream instead; seeing it open is enough to know it's there.
     const sse = await visit(fetchFn, endpoint, { headers: { accept: 'text/event-stream' }, untilMessage: true }).catch(() => null);
@@ -128,7 +162,7 @@ export async function checkMcp(endpoint, { fetchFn = fetch } = {}) {
   return { up: true, latency, note: tools ? null : 'Answered, but did not list its tools', server, tools, toolsMore: Boolean(tools?.more) };
 }
 
-export async function checkA2a(endpoint, { fetchFn = fetch } = {}) {
+export async function checkA2a(endpoint, { fetchFn = fetch, x402 = false } = {}) {
   const started = Date.now();
   const origin = new URL(endpoint).origin;
   for (const path of ['/.well-known/agent-card.json', '/.well-known/agent.json']) {
@@ -140,13 +174,17 @@ export async function checkA2a(endpoint, { fetchFn = fetch } = {}) {
     } catch { /* not JSON */ }
     if (card && typeof card === 'object' && card.name) {
       const skills = (Array.isArray(card.skills) ? card.skills : []).slice(0, 40).map((s) => ({ name: clip(s?.name || s?.id, 60), description: clip(s?.description, 140) || null })).filter((s) => s.name);
-      return { up: true, latency: Date.now() - started, note: null, server: { name: clip(card.name, 80), version: clip(card.version, 30) || null, protocol: clip(card.protocolVersion, 20) || null }, tools: skills };
+      const latency = Date.now() - started;
+      // An agent that says it takes x402 payments usually names its price when asked without paying.
+      const ask = x402 ? await visit(fetchFn, endpoint, { headers: { accept: 'application/json' } }).catch(() => null) : null;
+      return { up: true, latency, note: null, server: { name: clip(card.name, 80), version: clip(card.version, 30) || null, protocol: clip(card.protocolVersion, 20) || null }, tools: skills,
+        price: ask?.status === 402 ? x402Price(ask) : null };
     }
   }
   const res = await visit(fetchFn, endpoint, { headers: { accept: 'application/json' } });
   const latency = Date.now() - started;
   return res.status < 500
-    ? { up: true, latency, note: verdict(res.status) || 'Answered, but has no public agent card' }
+    ? { up: true, latency, note: verdict(res.status) || 'Answered, but has no public agent card', price: res.status === 402 ? x402Price(res) : null }
     : { up: false, latency, note: `Answered ${res.status}` };
 }
 
@@ -158,7 +196,7 @@ export async function checkAgent(row, { fetchFn = fetch, lookup = dnsLookup } = 
   if (safe.error) return { up: false, latency: null, note: safe.error };
   const a2a = row.source === 'erc8004' && !row.details?.mcp && row.details?.a2a;
   try {
-    return await (a2a ? checkA2a : checkMcp)(safe.url.href, { fetchFn });
+    return await (a2a ? checkA2a : checkMcp)(safe.url.href, { fetchFn, x402: Boolean(row.x402) });
   } catch (err) {
     const timeout = err?.name === 'TimeoutError' || err?.name === 'AbortError';
     return { up: false, latency: null, note: timeout ? `No answer within ${TIMEOUT_MS / 1000} seconds` : 'Could not connect' };

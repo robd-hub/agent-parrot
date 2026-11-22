@@ -26,7 +26,7 @@ Postgres via `pg` on Vercel (Neon), PGlite locally and in tests (`./.data/pg`). 
 ```bash
 npm install         # once
 npm run dev         # http://localhost:3000, reloads on save, reads .env if present
-npm test            # node --test, every file in test/ (39 tests, all should pass)
+npm test            # node --test, every file in test/ (43 tests, all should pass)
 npm run sync-grades # copy grades from ../agent-report-card/data into data/ (both repos side by side)
 npm start           # what Vercel runs
 ```
@@ -61,7 +61,8 @@ npm start           # what Vercel runs
 | `src/session.js`, `src/email.js`, `src/news.js` | Cookies, email sending, RSS feeds |
 | `src/directories.js` | Pulls agents in from the Official MCP Registry and ERC-8004 (daily cron `/api/cron/directories`), "Listed on" badges |
 | `src/directory-routes.js`, `src/directory-views.js` | `/listed` (agents not Polly Tested yet), each listed agent's page `/listed/<source>/<id>`, maker pages `/makers/<kind>/<id>`, `/admin/directories` |
-| `src/health.js` | Health checks: does each listed agent answer, how fast, what tools/skills it lists. Public addresses only, no redirects |
+| `src/health.js` | Health checks: does each listed agent answer, how fast, what tools/skills it lists, and the x402 price an agent asks for (read, never paid). Public addresses only, no redirects |
+| `src/activity.js` | Code activity from GitHub for listed agents with a public repo (last change, stars, open issues, archived), weekly per repo after each health run. Optional `GITHUB_TOKEN` raises the limit |
 | `src/security.js` | Security flags: HTTPS, needs a key, takes payment, tool powers (money, messages, code, data changes) from MCP annotations or tool names |
 | `src/makers.js` | Key details for tested agents (maker, links, dates, model, pricing) and the maker reputation score |
 | `data/agent-facts.json` | Hand-kept facts the grade data lacks (maker, website, pricing). Only confirmed facts; leave blanks blank |

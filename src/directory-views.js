@@ -37,6 +37,40 @@ export function healthRows(r) {
     h.server?.name ? row('Says it is', `${esc(h.server.name)}${h.server.version ? ` ${esc(h.server.version)}` : ''}${h.server.protocol ? ` <span class="muted small">protocol ${esc(h.server.protocol)}</span>` : ''}`) : '',
   ];
 }
+// Price per call, from the agent's own x402 offer at its last health check.
+export function priceText(r) {
+  const p = r?.health?.price;
+  if (p?.display) return `${esc(p.display)} <span class="muted small">(the agent's own asking price at its last check; we never pay)</span>`;
+  return '';
+}
+const priceMissing = (r) => (r.x402 && !r.checked_at ? 'Takes x402 payments; the price is read at its first health check' : r.x402 ? 'Takes x402 payments, but did not name a price when asked without paying (it may only ask once a tool is used)'
+  : r.source === 'mcp' ? 'Not stated' : 'No x402');
+export const shortPrice = (r) => (Number.isFinite(r?.health?.price?.usd) ? `$${r.health.price.usd < 0.01 ? Number(r.health.price.usd.toFixed(6)) : r.health.price.usd.toFixed(2)}/call` : '');
+
+// Code and on-chain activity rows.
+const ago = (iso) => {
+  const d = Math.floor((Date.now() - new Date(iso)) / 86400000);
+  return d < 1 ? 'today' : d === 1 ? 'yesterday' : d < 60 ? `${d} days ago` : d < 730 ? `${Math.round(d / 30)} months ago` : `${Math.round(d / 365)} years ago`;
+};
+export function activityRows(r) {
+  const d = r.details ?? {};
+  const out = [];
+  if (d.repo && /^https:\/\/github\.com\//.test(d.repo)) {
+    const a = r.activity;
+    out.push(row('Code activity', !a ? '' : !a.found ? '<span class="muted">Repository not found on GitHub (private, moved or deleted)</span>'
+      : `${a.pushedAt ? `Last change ${esc(ago(a.pushedAt))} <span class="muted small">(${day(a.pushedAt)})</span>` : 'No changes recorded'}${a.archived ? ' · <b class="bad">Archived</b>' : ''}<br>
+        <span class="muted small">${Number(a.stars).toLocaleString('en-GB')} ${a.stars === 1 ? 'star' : 'stars'} · ${Number(a.openIssues).toLocaleString('en-GB')} open issues and pull requests · ${Number(a.forks).toLocaleString('en-GB')} forks${a.language ? ` · ${esc(a.language)}` : ''}${a.license && a.license !== 'NOASSERTION' ? ` · ${esc(a.license)} licence` : ''}</span>`,
+    'Not read yet: GitHub is checked for each repo once a week'));
+  } else if (r.source === 'mcp') {
+    out.push(row('Code activity', '', d.repo ? 'Code is not on GitHub, so not tracked' : 'No public code listed'));
+  }
+  if (r.source === 'erc8004') {
+    out.push(row('Last on-chain activity', d.lastActivity ? `${esc(ago(d.lastActivity))} <span class="muted small">(${day(d.lastActivity)}, on the ERC-8004 registry)</span>` : '', 'Not recorded by the registry index'));
+    out.push(row('Paid jobs', '', 'Not tracked: no public source counts them yet'));
+  }
+  return out;
+}
+
 export function toolsBlock(r) {
   const tools = toolsOf(r);
   if (!tools?.length) return '';
@@ -80,8 +114,8 @@ export function testedDetailsBlock(d, { gradedAt, rep, rows = [] } = {}) {
       row('AI model', esc(d.model ?? ''), 'Not published by the maker or the marketplace'),
       d.version ? row('Version', esc(d.version)) : '',
       row('Chains', tags(d.chains), 'None'),
-      row('Pricing', esc(d.pricing ?? '') || (d.x402 ? 'Pay per call over x402' : ''), 'Not published'),
-      ...(checked ? healthRows(checked) : [row('Health check', '', d.connection?.startsWith('OpenServ') ? 'Reached through OpenServ, so not checked directly' : 'Not listed with a public address yet')]),
+      row('Pricing', [esc(d.pricing ?? ''), checked ? priceText(checked) : ''].filter(Boolean).join('<br>') || (d.x402 ? 'Pay per call over x402' : ''), 'Not published'),
+      ...(checked ? [...healthRows(checked), ...activityRows(checked)] : [row('Health check', '', d.connection?.startsWith('OpenServ') ? 'Reached through OpenServ, so not checked directly' : 'Not listed with a public address yet')]),
     ])}
     ${d.note ? `<p class="muted small">${esc(d.note)}</p>` : ''}
     ${rep ? reputationBlock(rep, { compact: true, path: makerPath(d.makerKey) }) : ''}
@@ -105,7 +139,7 @@ function listedCard(r, makerCounts = {}) {
       <span class="agent-main"><strong><a href="${esc(link)}">${esc(r.name)}</a></strong>
         <span class="muted small">${r.maker_name ? `by ${makerPath(r.maker_key) ? `<a href="${esc(makerPath(r.maker_key))}">${esc(r.maker_name)}</a>` : esc(r.maker_name)}${others > 0 ? ` (+${others.toLocaleString('en-GB')} more)` : ''}` : r.source === 'mcp' ? esc(r.source_id) : `Agent #${esc(r.source_id.split(':')[1])}`} · not Polly Tested yet</span>
         ${r.description ? `<span class="agent-desc">${esc(r.description)}</span>` : ''}</span>
-      <span class="agent-tags">${healthTag(r)}${toolsOf(r)?.length ? `<span class="tag">${toolsOf(r).length}${r.health?.toolsMore ? '+' : ''} ${r.source === 'erc8004' && !r.details?.mcp ? 'skills' : 'tools'}</span>` : ''}${cardFlags(r).map((f) => `<span class="tag ${f.level === 'bad' ? 'tag-fail' : 'tag-mid'}">${esc(f.text)}</span>`).join('')}${sourceTag(r)}${r.x402 ? '<span class="tag">x402</span>' : ''}
+      <span class="agent-tags">${healthTag(r)}${toolsOf(r)?.length ? `<span class="tag">${toolsOf(r).length}${r.health?.toolsMore ? '+' : ''} ${r.source === 'erc8004' && !r.details?.mcp ? 'skills' : 'tools'}</span>` : ''}${shortPrice(r) ? `<span class="tag">${esc(shortPrice(r))}</span>` : ''}${cardFlags(r).map((f) => `<span class="tag ${f.level === 'bad' ? 'tag-fail' : 'tag-mid'}">${esc(f.text)}</span>`).join('')}${sourceTag(r)}${r.x402 ? '<span class="tag">x402</span>' : ''}
         <a class="btn small" href="/get-polly-tested?agent=${encodeURIComponent(testWith)}">Get it tested</a></span>
     </div>`;
 }
@@ -164,7 +198,7 @@ export function listedOnBlock(list) {
     }).join('')}</div>`;
 }
 
-export function adminDirectoriesPage({ counts, state, hasGraphKey, report, health, healthReport }) {
+export function adminDirectoriesPage({ counts, state, hasGraphKey, hasGithubToken = false, report, health, healthReport }) {
   const line = (id) => {
     const c = counts.find((x) => x.source === id);
     const at = state[`sync_${id}_at`];
@@ -185,7 +219,9 @@ export function adminDirectoriesPage({ counts, state, hasGraphKey, report, healt
   <section class="card">
     <h2>Health checks</h2>
     <p>Each agent with an address gets one short visit at most once a day, to see if it answers and what tools it lists. Runs twice a day; each run checks the ones checked longest ago.</p>
-    ${healthReport ? `<div class="notice">Checked ${Number(healthReport.checked)}; ${Number(healthReport.up)} answered.</div>` : ''}
+    ${healthReport ? `<div class="notice">Checked ${Number(healthReport.checked)}; ${Number(healthReport.up)} answered.${healthReport.activity
+      ? ` GitHub activity read for ${Number(healthReport.activity.checked)} ${healthReport.activity.checked === 1 ? 'repo' : 'repos'}.${healthReport.activity.stopped ? ` ${esc(healthReport.activity.stopped)}.` : ''}` : ''}</div>` : ''}
+    ${hasGithubToken ? '' : '<p class="muted small">Code activity is read from GitHub without a key, so only about 25 repos a run. Add a GITHUB_TOKEN in Vercel (a fine-grained token with no extra permissions) to read up to 400.</p>'}
     ${health ? `<p><b>${Number(health.checked).toLocaleString('en-GB')}</b> of ${Number(health.checkable).toLocaleString('en-GB')} checked so far, <b>${Number(health.up).toLocaleString('en-GB')}</b> answered last time.</p>` : ''}
     <form method="post" action="/admin/directories/health"><button type="submit">Check a batch now</button></form>
   </section>`, { wide: true });
@@ -237,9 +273,10 @@ export function listedAgentPage({ r, rep, more = [] }) {
         !isMcp ? row('Skills', tags(d.skills), 'None listed') : '',
         !isMcp ? row('Trust methods', tags(d.trusts), 'None listed') : '',
         !isMcp ? row('On-chain feedback', d.feedback ? `${Number(d.feedback).toLocaleString('en-GB')} ${d.feedback === 1 ? 'entry' : 'entries'}` : '', 'None yet') : '',
-        row('Payments', r.x402 ? 'Takes x402 payments' : '', isMcp ? 'Not stated' : 'No x402'),
+        row('Price per call', priceText(r), priceMissing(r)),
         row('AI model', '', 'Not published: neither registry asks for it'),
         ...healthRows(r),
+        ...activityRows(r),
       ])}
     </section>
     ${securityBlock(r)}

@@ -58,8 +58,9 @@ export const testedByMaker = (key, testedIds = []) =>
 //   Track record, up to 70: the average Squawk Score of their Polly Tested agents x 0.7, less 10 for each one that
 //     made something up on the honesty check. Only makers with a tested agent can earn these points.
 //   Trust signals, up to 30: 10 if a registry checked who they are (a GitHub login or a domain in the MCP Registry),
-//     5 for being listed 6 months or more (3 for a month or more), 5 for being listed in 2 or more places, 5 for any
-//     on-chain feedback, 5 if at least half their agents answered at their last health check.
+//     5 for being listed 6 months or more (3 for a month or more), 5 for being listed in 2 or more places, 5 for
+//     recent activity (code changed or on-chain activity in the last 90 days, or any on-chain feedback), 5 if at
+//     least half their agents answered at their last health check.
 //   Bulk warning: 50 or more agents from one maker takes 10 off the trust points. Spam wallets often do this.
 // So a maker with nothing tested can reach 30 at most, and is labelled Unproven.
 export function makerReputation({ key, stats, tested = [], places = 0, now = new Date() }) {
@@ -83,7 +84,9 @@ export function makerReputation({ key, stats, tested = [], places = 0, now = new
   const where = Math.max(places, stats?.sources ?? 0);
   lines.push({ points: where >= 2 ? 5 : 0, of: 5, text: `Listed in ${where} ${where === 1 ? 'place' : 'places'}` });
   const fb = stats?.feedback ?? 0;
-  lines.push({ points: fb > 0 ? 5 : 0, of: 5, text: fb ? `${fb} on-chain feedback ${fb === 1 ? 'entry' : 'entries'}` : 'No on-chain feedback' });
+  const active = stats?.active ?? 0;
+  lines.push({ points: fb > 0 || active > 0 ? 5 : 0, of: 5, text: [active ? `${active} ${active === 1 ? 'agent' : 'agents'} active in the last 90 days` : '',
+    fb ? `${fb} on-chain feedback ${fb === 1 ? 'entry' : 'entries'}` : ''].filter(Boolean).join(', ') || 'No recent code or on-chain activity seen' });
   const checkedN = stats?.checked ?? 0;
   const upN = stats?.up ?? 0;
   lines.push({ points: checkedN && upN * 2 >= checkedN ? 5 : 0, of: 5, text: checkedN

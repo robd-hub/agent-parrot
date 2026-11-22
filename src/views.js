@@ -7,9 +7,9 @@ export const esc = (v) =>
   String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
 export const BRAND = 'Agent Parrot';
-export const TAGLINE = 'Every agent here has been Polly Tested.';
+export const TAGLINE = 'Every grade here comes from a Polly Test.';
 export const SLOGAN = 'Polly wants a grade';
-export const DEFAULT_DESCRIPTION = 'The AI agent community where every listed agent has been tested. Graded agents, the Pecking Order, daily satire and a daily game.';
+export const DEFAULT_DESCRIPTION = 'The AI agent directory where agents get tested. Graded agents, the Pecking Order, tens of thousands more from public registries, and a daily game.';
 
 // Set for each request by the routes: who is signed in, the site address and the page path.
 export const pageContext = new AsyncLocalStorage();
@@ -40,7 +40,8 @@ function previewTags({ title, description, type, image = '/og.png' }) {
 }
 
 const NAV = [
-  ['/agents', 'Directory'], ['/pecking-order', 'Pecking Order'], ['/news', 'News'], ['/game', 'Game'], ['/articles', 'Articles'], ['/get-polly-tested', 'Get tested'],
+  ['/agents', 'Tested agents'], ['/listed', 'All agents'], ['/pecking-order', 'Pecking Order'], ['/compare', 'Compare'],
+  ['/news', 'News'], ['/game', 'Game'], ['/get-polly-tested', 'Get tested'],
 ];
 
 // Runs before the page paints so dark mode never flashes white. The site is light unless someone picked dark on this device.
@@ -90,7 +91,8 @@ export function layout(title, body, { wide = false, description = DEFAULT_DESCRI
       <div><img src="/parrot.svg" width="36" height="36" alt=""> <strong>${SLOGAN}.</strong></div>
       <p>Grades come from <a href="${esc(graderUrl())}">Agent Report Card</a>, two independent judges per answer.
         The Daily Hallucination is satire: the stories are made up on purpose and link to the real news they poke fun at.</p>
-      <p><a href="/squawk">The Squawk</a> · <a href="/digest">Top movers</a> · <a href="/articles">Articles</a> · <a href="/get-polly-tested">Get Polly Tested</a> · <a href="/feed">Grades feed</a> · <a href="/privacy">Privacy</a></p>
+      <p><a href="/agents">Tested agents</a> · <a href="/listed">All agents</a> · <a href="/compare">Compare</a> · <a href="/request">Request a Polly Test</a> · <a href="/peek">Polly Peek (free)</a> · <a href="/get-polly-tested">Get Polly Tested</a></p>
+      <p><a href="/squawk">The Squawk</a> · <a href="/digest">Top movers</a> · <a href="/articles">Articles</a> · <a href="/feed">Grades feed</a> · <a href="/privacy">Privacy</a></p>
     </div>
   </footer>
 </body>
@@ -189,7 +191,7 @@ export function agentTable(rows) {
     </table></div>`;
 }
 
-export function homePage({ member, memberCount, stats, rows, category, honestyFails, makers, stories, articles, gameNo, providers, emailLogin, inviter, error }) {
+export function homePage({ member, memberCount, stats, listedCount = 0, rows, category, honestyFails, makers, stories, articles, gameNo, providers, emailLogin, inviter, error }) {
   const firstName = esc(member?.first_name || member?.name || '');
   const join = member
     ? (member.consent_at
@@ -198,11 +200,12 @@ export function homePage({ member, memberCount, stats, rows, category, honestyFa
     : `${signInButtons(providers)}${emailLogin ? emailLoginForm() : ''}`;
   const miniRow = (a, right) => `<li><a href="/agents/${esc(a.id)}">${gradeBadge(a.grade, { size: 'sm' })}<span class="pname">${esc(a.name)}</span><span class="pscore">${right}</span></a></li>`;
   const top3 = rows.length && !category ? stats.top3 : rows.slice(0, 3);
-  return layout(`${BRAND}: the AI agent directory where every agent is tested`, `
+  return layout(`${BRAND}: the AI agent directory where agents get tested`, `
     <section class="market-head">
-      <h1>Every AI agent here has been <em>Polly Tested</em></h1>
-      <p class="market-line">There are <strong>${Number(stats.count)}</strong> tested agents. <strong>${Number(stats.grades.A)}</strong> got an A,
-        <strong>${Number(stats.honestyFailed.length)}</strong> made something up, and every one of the <strong>${Number(stats.tasks)}</strong> answers was scored by two independent judges.</p>
+      <h1>AI agents, <em>Polly Tested</em></h1>
+      <p class="market-line"><strong>${Number(stats.count)}</strong> agents have taken the Polly Test. <strong>${Number(stats.grades.A)}</strong> got an A,
+        <strong>${Number(stats.honestyFailed.length)}</strong> made something up, and every one of the <strong>${Number(stats.tasks)}</strong> answers was scored by two independent judges.${listedCount > 0
+          ? ` Another <a href="/listed"><strong>${Number(listedCount).toLocaleString('en-US')}</strong> agents</a> from public directories are listed too, clearly marked as not tested yet.` : ''}</p>
       ${error ? `<p class="error">${esc(error)}</p>` : ''}
       ${inviter ? `<p class="invited">${esc(inviter.first_name)} invited you to the flock.</p>` : ''}
     </section>
@@ -558,7 +561,7 @@ export function signInPage({ providers, emailLogin, error, mode = 'signin' }) {
         ? 'Already a member? <a href="/signin">Sign in</a>'
         : `New to ${BRAND}? <a href="/signup">Sign up free</a>`}</p>
       <p class="fine">We only receive your name, email and photo. We never post for you, and you can remove yourself at any time. <a href="/privacy">Privacy</a></p>
-    </section>`, { description: signup ? 'Join Agent Parrot, the AI agent community where every listed agent is tested.' : 'Sign in to Agent Parrot.' });
+    </section>`, { description: signup ? 'Join Agent Parrot, the AI agent directory where agents get tested.' : 'Sign in to Agent Parrot.' });
 }
 
 export const LINK_MINUTES = 30;

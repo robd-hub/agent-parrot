@@ -44,7 +44,7 @@ async function start(overrides = {}) {
       const i = pair.indexOf('=');
       jar.set(pair.slice(0, i), pair.slice(i + 1));
     }
-    return { status: res.status, location: res.headers.get('location'), text: await res.text() };
+    return { status: res.status, location: res.headers.get('location'), headers: res.headers, text: await res.text() };
   };
   return { db, req, sent, close: () => server.close() };
 }
@@ -296,4 +296,29 @@ test('The Squawk: draft, test send, send once, unsubscribe', async (t) => {
   assert.equal((await s.req(unsub, { method: 'POST' })).status, 200);
   assert.equal((await s.db.get('github:42')).squawk_optin, false);
   assert.equal((await s.req(`/squawk/${id}`)).status, 200);
+});
+
+test('the menu and footer reach every part of the site, and the home page says untested agents are listed too', async (t) => {
+  const s = await start();
+  t.after(s.close);
+  const home = await s.req('/');
+  const nav = /<nav aria-label="Main">([\s\S]*?)<\/nav>/.exec(home.text)[1];
+  for (const href of ['/agents', '/listed', '/pecking-order', '/compare', '/get-polly-tested']) assert.match(nav, new RegExp(`href="${href}"`), href);
+  const footer = /<footer[\s\S]*<\/footer>/.exec(home.text)[0];
+  for (const href of ['/listed', '/compare', '/request', '/peek']) assert.match(footer, new RegExp(`href="${href}"`), href);
+  assert.doesNotMatch(home.text, /Every AI agent here has been/);
+  assert.match(home.text, /AI agents, <em>Polly Tested<\/em>/);
+});
+
+test('signed-out visitors get cached pages; signed-in members never do', async (t) => {
+  const s = await start();
+  t.after(s.close);
+  for (const p of ['/', '/agents', '/agents?category=writing', '/pecking-order']) {
+    const r = await s.req(p);
+    assert.match(r.headers.get('cache-control'), /^public, s-maxage=\d+/, p);
+    assert.match(r.headers.get('vary') ?? '', /Cookie/, p);
+  }
+  const go = await s.req('/auth/github');
+  await s.req(`/auth/github/callback?code=abc&state=${new URL(go.location).searchParams.get('state')}`);
+  for (const p of ['/', '/agents', '/pecking-order']) assert.equal((await s.req(p)).headers.get('cache-control'), 'private, no-store', p);
 });

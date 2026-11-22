@@ -175,6 +175,18 @@ const SCHEMA = `
   );
   CREATE INDEX IF NOT EXISTS agent_reports_ref ON agent_reports (agent_ref, status);
   CREATE UNIQUE INDEX IF NOT EXISTS agent_reports_one_open ON agent_reports (agent_ref, member_id) WHERE status = 'open';
+  -- Claimed listings (src/claims.js): the member who proved they own an agent. One owner per agent. agent_ref is the
+  -- same ref reviews use (a tested id or a listed "source:id"). method says how they proved it, proof what matched.
+  CREATE TABLE IF NOT EXISTS claims (
+    agent_ref  TEXT PRIMARY KEY,
+    member_id  TEXT NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    method     TEXT NOT NULL,
+    proof      TEXT NOT NULL DEFAULT '',
+    checked_at TIMESTAMPTZ,
+    badge_seen_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+  CREATE INDEX IF NOT EXISTS claims_member ON claims (member_id);
   -- Simple on/off switches the organiser flips from the admin pages, such as pausing The Daily Hallucination.
   CREATE TABLE IF NOT EXISTS settings (
     key   TEXT PRIMARY KEY,
@@ -533,6 +545,34 @@ export function openDb(client) {
         q(`UPDATE agent_reports a SET agent_ref = l.tested_id FROM listed_agents l
            WHERE l.tested_id IS NOT NULL AND a.agent_ref = l.source || ':' || l.source_id
              AND NOT (a.status = 'open' AND EXISTS (SELECT 1 FROM agent_reports x WHERE x.agent_ref = l.tested_id AND x.member_id = a.member_id AND x.status = 'open'))`),
+    },
+
+    // Claimed listings (see src/claims.js).
+    claims: {
+      get: (ref) => one('SELECT c.*, m.name, m.first_name, m.last_name, m.member_number FROM claims c JOIN members m ON m.id = c.member_id WHERE c.agent_ref = $1', [ref]),
+      // Saves a claim unless someone else already holds it. Returns the claim as it now stands.
+      async save(ref, memberId, method, proof) {
+        await q('INSERT INTO claims (agent_ref, member_id, method, proof) VALUES ($1, $2, $3, $4) ON CONFLICT (agent_ref) DO NOTHING', [ref, memberId, method, proof]);
+        return one('SELECT * FROM claims WHERE agent_ref = $1', [ref]);
+      },
+      mine: (memberId) => q('SELECT * FROM claims WHERE member_id = $1 ORDER BY created_at', [memberId]),
+      // Which of these refs are claimed: { ref: true }.
+      async which(refs) {
+        const list = [...new Set(refs.filter(Boolean))];
+        if (!list.length) return {};
+        return Object.fromEntries((await q('SELECT agent_ref FROM claims WHERE agent_ref = ANY($1)', [list])).map((r) => [r.agent_ref, true]));
+      },
+      // Listings whose registry-checked maker is this GitHub login and that nobody has claimed yet.
+      unclaimedFor: (makerKey, limit = 20) =>
+        q(`SELECT l.* FROM listed_agents l WHERE l.maker_key = $1 AND l.tested_id IS NULL
+             AND NOT EXISTS (SELECT 1 FROM claims c WHERE c.agent_ref = l.source || ':' || l.source_id)
+           ORDER BY lower(l.name) LIMIT $2`, [makerKey, limit]),
+      release: (ref, memberId) => q('DELETE FROM claims WHERE agent_ref = $1 AND member_id = $2', [ref, memberId]),
+      remove: (ref) => q('DELETE FROM claims WHERE agent_ref = $1', [ref]),
+      markChecked: (ref) => q('UPDATE claims SET checked_at = now() WHERE agent_ref = $1', [ref]),
+      // A badge was loaded. Kept to once an hour per claim so badge views stay cheap.
+      badgeSeen: (ref) => q("UPDATE claims SET badge_seen_at = now() WHERE agent_ref = $1 AND (badge_seen_at IS NULL OR badge_seen_at < now() - interval '1 hour')", [ref]),
+      forAdmin: () => q(`SELECT c.*, m.name, m.email, m.github_login FROM claims c JOIN members m ON m.id = c.member_id ORDER BY c.created_at DESC LIMIT 500`),
     },
 
     game: {

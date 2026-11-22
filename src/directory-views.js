@@ -251,7 +251,7 @@ export function adminDirectoriesPage({ counts, state, hasGraphKey, hasGithubToke
 }
 
 // One listed agent's page, with everything its directory says about it.
-export function listedAgentPage({ r, rep, more = [], reviews = null, report = null }) {
+export function listedAgentPage({ r, rep, more = [], reviews = null, report = null, claim = '' }) {
   const d = r.details ?? {};
   const isMcp = r.source === 'mcp';
   const testWith = r.endpoint || r.url || r.name;
@@ -272,7 +272,7 @@ export function listedAgentPage({ r, rep, more = [], reviews = null, report = nu
       <span class="grade grade-none xl" title="Not Polly Tested yet">?</span>
       <div>
         <p class="eyebrow">${esc(SOURCES[r.source]?.name ?? r.source)}${r.chain ? ` · ${esc(r.chain)}` : ''} · not Polly Tested yet</p>
-        ${healthTag(r)}
+        ${healthTag(r)} ${claim}
         <h1>${esc(r.name)}</h1>
         ${r.description ? `<p class="lead">${esc(r.description)}</p>` : '<p class="lead muted">No description given.</p>'}
         <p class="meaning">Polly hasn't checked this agent's work, so it has no grade. The details below are what its directory says.</p>

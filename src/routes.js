@@ -24,6 +24,8 @@ import { reviewRoutes, reviewSection } from './reviews.js';
 import { reviewsBlock, ratingFact, noticeFor } from './review-views.js';
 import { agentReportRoutes, reportSection } from './agent-reports.js';
 import { reportNoticeFor } from './agent-report-views.js';
+import { claimRoutes, claimInfo, claimsForMember } from './claims.js';
+import { claimTag, memberClaimsBlock } from './claim-views.js';
 
 // A complete app around the routes, used by tests.
 export function createApp(options) {
@@ -158,7 +160,7 @@ export function createRoutes({
     // Signed-in members see their own review form, so their copy of the page is never cached for others.
     res.set('Cache-Control', req.session.uid ? 'private, no-store' : 'public, s-maxage=600, stale-while-revalidate=3600');
     res.send(views.agentPage({ agent, place: order.find((a) => a.id === agent.id).place, total: order.length, listed, details,
-      rating: ratingFact(reviews.summary), reviews: reviewsBlock(reviews, { tested: true }) }));
+      rating: ratingFact(reviews.summary), reviews: reviewsBlock(reviews, { tested: true }), claim: claimTag(await claimInfo(db, agent.id)) }));
   });
 
   app.get('/pecking-order', (req, res) => {
@@ -326,9 +328,9 @@ export function createRoutes({
   });
 
   app.get('/me', signedIn, joined, async (req, res) => {
-    const [inviteCode, invited, streak] = await Promise.all([db.invites.codeFor(req.member.id), db.invites.count(req.member.id), db.game.streak(req.member.id, today())]);
+    const [inviteCode, invited, streak, claims] = await Promise.all([db.invites.codeFor(req.member.id), db.invites.count(req.member.id), db.game.streak(req.member.id, today()), claimsForMember(db, req.member)]);
     res.set('Cache-Control', 'private, no-store');
-    res.send(views.mePage({ member: req.member, inviteCode, invited, streak }));
+    res.send(views.mePage({ member: req.member, inviteCode, invited, streak, claims: memberClaimsBlock(claims) }));
   });
 
   app.post('/remove', signedIn, async (req, res) => {
@@ -358,6 +360,7 @@ export function createRoutes({
   app.use(compareRoutes({ db }));
   app.use(reviewRoutes({ db, adminOnly }));
   app.use(agentReportRoutes({ db, adminOnly }));
+  app.use(claimRoutes({ db, config, adminOnly, fetchFn, lookup }));
 
   app.get('/admin', adminOnly, async (req, res) => {
     res.set('Cache-Control', 'private, no-store');
@@ -434,7 +437,7 @@ export function createRoutes({
 
   app.get('/robots.txt', (req, res) => {
     res.type('text/plain').send(['User-agent: *',
-      ...['/admin', '/auth', '/api', '/join', '/me', '/signin', '/signup', '/logout', '/remove'].map((p) => `Disallow: ${p}`),
+      ...['/admin', '/auth', '/api', '/join', '/me', '/signin', '/signup', '/logout', '/remove', '/claim'].map((p) => `Disallow: ${p}`),
       '', `Sitemap: ${config.baseUrl}/sitemap.xml`, ''].join('\n'));
   });
 

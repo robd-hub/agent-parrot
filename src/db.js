@@ -158,6 +158,13 @@ const SCHEMA = `
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
   );
   CREATE INDEX IF NOT EXISTS review_actions_member ON review_actions (member_id, created_at);
+  -- The weekly top-movers digest (src/digest.js), one row per week (the Monday it starts on), kept as built.
+  CREATE TABLE IF NOT EXISTS digests (
+    week       TEXT PRIMARY KEY,
+    content    JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
   -- Members reporting an agent (scam, broken, misleading, unsafe permissions, other). One open report per member per
   -- agent. The organiser confirms or dismisses each one; only confirmed reports show as a community flag on the agent.
   CREATE TABLE IF NOT EXISTS agent_reports (
@@ -313,6 +320,25 @@ export function openDb(client) {
       byCode: async (code) =>
         (await one('SELECT id, COALESCE(first_name, name) AS first_name FROM members WHERE invite_code = $1 AND consent_at IS NOT NULL', [String(code).toLowerCase()])) ?? null,
       count: async (memberId) => (await one('SELECT count(*)::int AS n FROM members WHERE referred_by = $1 AND consent_at IS NOT NULL', [memberId])).n,
+    },
+
+    // The weekly digest (see src/digest.js).
+    digest: {
+      save: (week, content) => q(`INSERT INTO digests (week, content) VALUES ($1, $2)
+        ON CONFLICT (week) DO UPDATE SET content = excluded.content, updated_at = now()`, [week, JSON.stringify(content)]),
+      get: (week) => one('SELECT week, content, created_at, updated_at FROM digests WHERE week = $1', [week]),
+      weeks: async () => (await q('SELECT week FROM digests ORDER BY week DESC')).map((r) => r.week),
+      list: () => q(`SELECT week, content->>'live' AS live, content->'counts' AS counts, content->'gains'->0 AS gain, content->'drops'->0 AS drop
+        FROM digests ORDER BY week DESC LIMIT 200`),
+      // Visible reviews written between two times, per agent: most reviewed first.
+      reviewsBetween: (from, to) => q(`SELECT agent_ref, count(*)::int AS count, avg(stars)::float AS avg FROM reviews
+        WHERE NOT hidden AND created_at >= $1 AND created_at < $2 GROUP BY agent_ref ORDER BY count(*) DESC, avg(stars) DESC, agent_ref LIMIT 200`, [from, to]),
+      listedBetween: async (from, to) => (await one('SELECT count(*)::int AS n FROM listed_agents WHERE first_published_at >= $1 AND first_published_at < $2', [from, to])).n,
+      // Listed agents that answered at least once before but not at the latest check. Tested agents first.
+      down: () => q(`SELECT source, source_id, name, tested_id, checks, up_checks FROM listed_agents
+        WHERE checked_at IS NOT NULL AND up IS FALSE AND up_checks > 0 ORDER BY (tested_id IS NULL), up_checks DESC, lower(name) LIMIT 5000`),
+      upNow: (refs) => q(`SELECT source, source_id, name, tested_id, checks, up_checks FROM listed_agents
+        WHERE up IS TRUE AND (source || ':' || source_id) = ANY($1::text[]) ORDER BY (tested_id IS NULL), up_checks DESC, lower(name)`, [refs]),
     },
 
     settings: {

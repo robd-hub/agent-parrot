@@ -19,14 +19,14 @@ secret into chat; env values never go in the repo, a PR or chat.
 
 Node 24, ES modules, Express 5, HTML from template strings in `src/*views.js`, no framework or build step.
 Postgres via `pg` on Vercel (Neon), PGlite locally and in tests (`./.data/pg`). Vercel Cron calls
-`/api/cron/hallucination` at 06:00 UTC, `/api/cron/directories` at 05:00 UTC and `/api/cron/health` at 01:00 and 13:00 UTC. Claude API writes The Daily Hallucination (`src/hallucination.js`).
+`/api/cron/hallucination` at 06:00 UTC, `/api/cron/directories` at 05:00 UTC and `/api/cron/health` at 01:00 and 13:00 UTC, and `/api/cron/digest` on Mondays at 07:00 UTC. Claude API writes The Daily Hallucination (`src/hallucination.js`).
 
 ## Commands
 
 ```bash
 npm install         # once
 npm run dev         # http://localhost:3000, reloads on save, reads .env if present
-npm test            # node --test, every file in test/ (64 tests, all should pass)
+npm test            # node --test, every file in test/ (68 tests, all should pass)
 npm run sync-grades # copy grades from ../agent-report-card/data into data/ (both repos side by side)
 npm start           # what Vercel runs
 ```
@@ -70,6 +70,7 @@ npm start           # what Vercel runs
 | `src/reviews.js`, `src/review-views.js` | Member reviews and ratings: one per member per agent (tested id or listed `source:id`), rate limits, reports, `/admin/reviews`, a maker's reviews put together on their page. Kept apart from grades and the reputation score |
 | `src/agent-reports.js`, `src/agent-report-views.js` | "Report this agent" (scam, broken, misleading, unsafe permissions, other): one open report per member per agent, 5 a day, `/admin/reports` to confirm or dismiss. Only confirmed reports show, as community flags in Security, on `/compare` and as a `/listed` card tag. Never hides an agent |
 | `src/claims.js`, `src/claim-views.js` | Claim your listing: `/claim?ref=<ref>` (prove ownership by GitHub sign-in or a code in a file), the "Claimed by its maker" tick, the free basic check, the badge `/badge.svg?ref=<ref>`, `/admin/claims`. Never changes a grade |
+| `src/digest.js`, `src/digest-views.js` | Weekly top-movers digest: `/digest`, `/digest/<monday>`, `/admin/digest` (LinkedIn text to copy; never auto-posted), weekly cron |
 | `data/agent-facts.json` | Hand-kept facts the grade data lacks (maker, website, pricing). Only confirmed facts; leave blanks blank |
 | `src/feed.js` | Public grades feed: `/api/grades.json`, `/api/grades/<id>.json`, `/api/grades/lookup`, and the `/feed` page |
 | `data/listed-on.json` | Hand-kept: where our own tested agents are registered, and entries never shown as untested |

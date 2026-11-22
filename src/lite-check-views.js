@@ -90,7 +90,7 @@ export function liteResultPage({ row, runUrl, admin = false }) {
     <section class="page-head">
       <p class="eyebrow">Lite Check · ${esc(dateLabel(row.finished_at || row.created_at))}${admin ? '' : ' · only you can see this'}</p>
       <h1>${esc(name)}</h1>
-      <p class="lead"><span class="pill ${b.cls}"><b>${esc(b.label)}</b></span>&nbsp; ${esc(b.meaning)}.${r.reason ? ` ${esc(r.reason)}` : ''}</p>
+      <p class="lead"><span class="pill ${b.cls}"><b>${esc(b.label)}</b></span>&nbsp; ${esc(b.meaning)}.${r.reason ? ` ${esc(r.reason)}` : ''}${r.band === 'couldnt-check' && !admin ? " It doesn't count against your free checks, so you can fix it and try again." : ''}</p>
     </section>
     ${r.findings?.length ? `<section class="card section"><h2>Two things Polly noticed</h2>
       <ol>${r.findings.map((f) => `<li><b>${esc(f.from)}:</b> ${esc(f.text)}</li>`).join('')}</ol></section>` : ''}

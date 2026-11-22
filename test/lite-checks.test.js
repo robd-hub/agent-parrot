@@ -184,6 +184,12 @@ test('a recently Polly Tested agent is pointed to a retest, and a failed run cos
     await ada.req(`${r.location}/run`, { method: 'POST', headers: { Accept: 'application/json' } });
     assert.match((await ada.req(r.location)).text, /didn't finish/);
     // A failed check doesn't use up the agent's monthly check.
+    app.setReply({ ...REPLY, band: 'couldnt-check', average: null, reason: "The agent didn't answer any of the tasks." });
+    const again = await ada.req('/lite', { method: 'POST', form: GOOD });
+    assert.equal(again.status, 303);
+    await ada.req(`${again.location}/run`, { method: 'POST', headers: { Accept: 'application/json' } });
+    assert.match((await ada.req(again.location)).text, /doesn't count against your free checks/);
+    // Nor does one that came back "couldn't check".
     app.setReply(REPLY);
     assert.equal((await ada.req('/lite', { method: 'POST', form: GOOD })).status, 303);
   } finally {

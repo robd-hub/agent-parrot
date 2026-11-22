@@ -26,6 +26,7 @@ import { reviewsBlock, ratingFact, noticeFor } from './review-views.js';
 import { agentReportRoutes, reportSection } from './agent-reports.js';
 import { reportNoticeFor } from './agent-report-views.js';
 import { claimRoutes, claimInfo, claimsForMember } from './claims.js';
+import { findingsRoutes } from './findings.js';
 import { claimTag, memberClaimsBlock } from './claim-views.js';
 import { testRequestRoutes, myRequestsBlock } from './test-requests.js';
 import { liteCheckRoutes, myLiteBlock } from './lite-checks.js';
@@ -368,6 +369,7 @@ export function createRoutes({
   app.use(reviewRoutes({ db, adminOnly }));
   app.use(agentReportRoutes({ db, adminOnly }));
   app.use(claimRoutes({ db, config, adminOnly, fetchFn, lookup }));
+  app.use(findingsRoutes({ db, adminOnly }));
   app.use(digestRoutes({ db, config, adminOnly, now }));
   app.use(testRequestRoutes({ db, config, fetchFn, now }));
   app.use(liteCheckRoutes({ db, config, adminOnly, fetchFn, now }));

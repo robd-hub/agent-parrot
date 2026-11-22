@@ -26,7 +26,7 @@ Postgres via `pg` on Vercel (Neon), PGlite locally and in tests (`./.data/pg`). 
 ```bash
 npm install         # once
 npm run dev         # http://localhost:3000, reloads on save, reads .env if present
-npm test            # node --test, every file in test/ (90 tests, all should pass)
+npm test            # node --test, every file in test/ (91 tests, all should pass)
 npm run sync-grades # copy grades from ../agent-report-card/data into data/ (both repos side by side)
 npm start           # what Vercel runs
 ```

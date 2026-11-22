@@ -41,17 +41,25 @@ function checkBlock({ check, canCheck, mine, ref }) {
   </section>`;
 }
 
+// "Your badge": the maker picks a look and their own colour, sees it live and copies the code (public/badge.js).
 function badgeBlock({ agent }) {
-  const img = siteUrl(`/badge.svg?ref=${encodeURIComponent(agent.ref)}`);
   const link = siteUrl(`${agent.path}?from=badge`);
+  const ref = encodeURIComponent(agent.ref);
+  const img = siteUrl(`/badge.svg?ref=${ref}&style=dark`);
   const md = `[![Agent Parrot](${img})](${link})`;
   const html = `<a href="${link}"><img src="${img}" alt="Agent Parrot"></a>`;
-  return `<section class="card section"><h2>Your badge</h2>
-    <p>Paste one of these once. The badge redraws itself after every check or test, so it's always current. If your agent goes down, it says so.</p>
-    <p><img src="${esc(`/badge.svg?ref=${encodeURIComponent(agent.ref)}`)}" alt="Your Agent Parrot badge" height="20"></p>
+  const look = (value, name, checked) => `<label class="badge-opt"><input type="radio" name="badge-style" value="${value}"${checked ? ' checked' : ''}> ${name}</label>`;
+  return `<section class="card section badge-tailor" data-base="${esc(siteUrl('/badge.svg'))}" data-ref="${esc(agent.ref)}" data-link="${esc(link)}"><h2>Your badge</h2>
+    <p>Make it match your site: pick a look and your own brand colour, then paste the code once. The badge redraws itself after every check or test, so it's always current. If your agent goes down, it says so.</p>
+    <div class="badge-controls">
+      <fieldset><legend class="small muted">Look</legend>${look('dark', 'Dark card', true)}${look('light', 'Light card')}${look('flat', 'Classic README badge')}</fieldset>
+      <p class="badge-colour"><label class="small muted" for="badge-accent">Your colour</label><input type="color" id="badge-accent" value="#12b76a"> <button type="button" class="ghost small" id="badge-accent-reset">Use Agent Parrot green</button></p>
+    </div>
+    <p class="badge-preview" id="badge-preview"><img id="badge-img" src="${esc(`/badge.svg?ref=${ref}&style=dark`)}" alt="Your Agent Parrot badge"></p>
     <p class="invite-link"><label class="small muted" for="badge-md">For a GitHub README</label><input id="badge-md" readonly value="${esc(md)}" onclick="this.select()"></p>
     <p class="invite-link"><label class="small muted" for="badge-html">For a website</label><input id="badge-html" readonly value="${esc(html)}" onclick="this.select()"></p>
-  </section>`;
+    <p class="small muted">Your colour is used for a pass or a good grade. A down or low result always shows in amber or red, whatever colour you pick.</p>
+  </section><script src="/badge.js" defer></script>`;
 }
 
 function nudgeBlock({ agent }) {
@@ -145,14 +153,32 @@ export function adminClaimsPage({ claims }) {
     <tbody>${rows || '<tr><td colspan="6" class="muted">No claims yet.</td></tr>'}</tbody></table></div></section>`, { wide: true });
 }
 
-// A small flat badge, like the ones on GitHub READMEs. Width is worked out from the text length.
+// The badge comes in three looks so it suits the page it sits on:
+//   flat  - the small grey-and-colour badge GitHub READMEs are full of (the default)
+//   dark  - a rounded card with Polly's head, for dark websites
+//   light - the same card for light websites
+// `accent` (six hex digits, no #) swaps Agent Parrot green for the site's own colour on the good states.
+// Width is worked out from the text length, as SVG in an <img> can't measure text.
+export const BADGE_STYLES = ['flat', 'dark', 'light'];
 const COLOURS = { green: '#2f9e44', yellow: '#d4a017', red: '#d9480f', blue: '#1c7ed6', grey: '#868e96' };
+const CARD_COLOURS = { green: '#12b76a', yellow: '#f5b400', red: '#f04438', blue: '#2e90fa', grey: '#98a2b3' };
+const GRADE_FILL = { A: '#12b76a', B: '#66c61c', C: '#f5b400', D: '#f79009', F: '#f04438' };
+const THEMES = {
+  dark: { bg: '#0b1210', line: '#24352c', ink: '#e7efea', muted: '#9bada3' },
+  light: { bg: '#ffffff', line: '#dfe7e2', ink: '#0e1a14', muted: '#56655d' },
+};
 const textWidth = (s) => [...s].reduce((w, ch) => w + (/[ilI.,:·|!']/.test(ch) ? 3.5 : /[mwMW]/.test(ch) ? 10 : /[A-Z0-9]/.test(ch) ? 7.5 : 6.5), 0);
-export function badgeSvg({ label = 'Agent Parrot', message, colour = 'grey' }) {
+export function badgeStyle(q = {}) {
+  const style = BADGE_STYLES.includes(q.style) ? q.style : 'flat';
+  const accent = /^[0-9a-f]{6}$/i.test(String(q.accent ?? '')) ? `#${String(q.accent).toLowerCase()}` : null;
+  return { style, accent };
+}
+export function badgeSvg({ label = 'Agent Parrot', message, colour = 'grey', grade, score, style = 'flat', accent = null }) {
+  if (style === 'dark' || style === 'light') return badgeCard({ label, message, colour, grade, score, theme: THEMES[style], accent });
   const lw = Math.round(textWidth(label) + 30); // room for the parrot dot
   const mw = Math.round(textWidth(message) + 14);
   const w = lw + mw;
-  const fill = COLOURS[colour] ?? COLOURS.grey;
+  const fill = (colour === 'green' && accent) || (COLOURS[colour] ?? COLOURS.grey);
   const title = `${label}: ${message}`;
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="20" role="img" aria-label="${esc(title)}"><title>${esc(title)}</title>
 <linearGradient id="s" x2="0" y2="100%"><stop offset="0" stop-color="#bbb" stop-opacity=".1"/><stop offset="1" stop-opacity=".1"/></linearGradient>
@@ -161,4 +187,41 @@ export function badgeSvg({ label = 'Agent Parrot', message, colour = 'grey' }) {
 <circle cx="11" cy="10" r="5" fill="#2f9e44"/><circle cx="13" cy="8.5" r="1.3" fill="#ffd43b"/><path d="M15.5 9.5l2.5 1-2.5 1z" fill="#ffd43b"/>
 <g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11">
 <text x="${(lw + 18) / 2}" y="14">${esc(label)}</text><text x="${lw + mw / 2}" y="14">${esc(message)}</text></g></svg>`;
+}
+
+// Polly's head (public/parrot.svg) drawn at 120x120, scaled down by the caller.
+const POLLY = `<clipPath id="pd"><circle cx="60" cy="60" r="58"/></clipPath><circle cx="60" cy="60" r="58" fill="#0E3B2A"/>
+<g clip-path="url(#pd)" transform="translate(-2 6)"><path d="M30 30 C26 18 30 10 38 6 C37 13 39 17 43 21 C44 12 50 7 57 8 C53 13 53 18 55 22 Z" fill="#12B76A"/>
+<path d="M14 120 C4 90 10 50 34 30 C54 14 84 18 94 40 C99 52 96 64 88 70 C84 92 72 108 56 120 Z" fill="#12B76A"/>
+<path d="M28 78 C38 72 52 76 56 88 C58 100 50 112 38 116 C30 106 26 92 28 78 Z" fill="#0A8F52"/>
+<ellipse cx="72" cy="48" rx="16" ry="14" fill="#FFFFFF"/><circle cx="75" cy="47" r="8.5" fill="#0E1A14"/><circle cx="78" cy="44" r="3" fill="#FFFFFF"/>
+<path d="M58 30 C66 24 76 24 84 29" stroke="#0E1A14" stroke-width="5" fill="none" stroke-linecap="round"/>
+<path d="M86 38 C104 32 118 46 115 66 C114 76 108 84 101 87 C103 76 99 68 86 66 Z" fill="#FFC531"/>
+<path d="M86 66 C96 66 100 72 97 78 C92 81 87 78 84 72 Z" fill="#E0A100"/></g>`;
+
+// The card look: Polly, a small "AGENT PARROT" line, the result underneath and, for a Polly Tested agent, the grade in a tile.
+function badgeCard({ label, message, colour, grade, score, theme, accent }) {
+  const H = 40;
+  const tested = Boolean(grade);
+  const main = tested ? `Polly Tested · Squawk ${Number(score)}` : message;
+  const kicker = label.toUpperCase();
+  const textX = 42;
+  const textW = Math.max(textWidth(kicker) * 0.78 + kicker.length * 1.1, textWidth(main) * 1.06);
+  const tile = tested ? 28 : 0;
+  const w = Math.round(textX + textW + (tested ? 10 + tile : 0) + 12);
+  const good = colour === 'green';
+  const tone = (good && accent) || CARD_COLOURS[colour] || CARD_COLOURS.grey;
+  const tileFill = (good && accent) || GRADE_FILL[grade] || CARD_COLOURS.grey;
+  const title = `${label}: ${message}`;
+  const font = `font-family="'Plus Jakarta Sans','Inter','Segoe UI',Helvetica,Arial,sans-serif"`;
+  const dot = tested ? '' : `<circle cx="${textX + 3}" cy="25.5" r="3" fill="${tone}"/>`;
+  const mainX = tested ? textX : textX + 10;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${tested ? w : w + 10}" height="${H}" viewBox="0 0 ${tested ? w : w + 10} ${H}" role="img" aria-label="${esc(title)}"><title>${esc(title)}</title>
+<rect x=".5" y=".5" width="${(tested ? w : w + 10) - 1}" height="${H - 1}" rx="10" fill="${theme.bg}" stroke="${accent && good ? accent : theme.line}" stroke-opacity="${accent && good ? '.55' : '1'}"/>
+<g transform="translate(8 8) scale(.2)">${POLLY}</g>
+<g ${font}>
+<text x="${textX}" y="16" font-size="8.5" font-weight="700" letter-spacing="1.1" fill="${(good && accent) || theme.muted}">${esc(kicker)}</text>
+${dot}<text x="${mainX}" y="30" font-size="12" font-weight="700" fill="${theme.ink}">${esc(main)}</text>
+${tested ? `<rect x="${w - 12 - tile}" y="6" width="${tile}" height="${tile}" rx="7" fill="${tileFill}"/><text x="${w - 12 - tile / 2}" y="25.5" text-anchor="middle" font-size="16" font-weight="800" fill="#06110c">${esc(grade)}</text>` : ''}
+</g></svg>`;
 }

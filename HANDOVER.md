@@ -65,7 +65,7 @@ Rules and commands are in `CLAUDE.md`. Update this file when something below cha
   domain, or in `agent-parrot.txt` in its GitHub repo. One owner per agent; `/admin/claims` to remove one.
   Claimed pages get a "Claimed by its maker" tick, the free basic check (the existing health check, plus "Check now"
   every 10 minutes), a badge `/badge.svg?ref=<ref>` (Claimed / Up / Down, or the grade for Polly Tested agents; links
-  back with `?from=badge`) and a Polly Test nudge. `/me` lists listings under the member's GitHub login to claim.
+  back with `?from=badge`; `&style=dark|light` gives a card look and `&accent=<hex>` the maker's own colour, picked on the claim page with a live preview, `public/badge.js`) and a Polly Test nudge. `/me` lists listings under the member's GitHub login to claim.
   Not built yet: wallet signatures for ERC-8004, editing description/logo, "your agent is down" emails, claims
   lapsing after 30 days, moving a claim when a listing gets matched to a tested agent. Badges only show to the
   public once the custom domain is live. Never email addresses taken from GitHub or open automated GitHub issues.

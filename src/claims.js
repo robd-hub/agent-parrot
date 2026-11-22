@@ -19,7 +19,7 @@ import { listedPath, listedRef, mainRow } from './directory-views.js';
 import { parseRef } from './compare.js';
 import { publicUrl, checkAgent } from './health.js';
 import { pageNotFound } from './views.js';
-import { claimPage, adminClaimsPage, badgeSvg, CLAIM_NOTICES } from './claim-views.js';
+import { claimPage, adminClaimsPage, badgeSvg, badgeStyle, CLAIM_NOTICES } from './claim-views.js';
 
 export const CHECK_EVERY_MINUTES = 10; // an owner can run the free check this often
 const FETCH_MS = 8000;
@@ -213,9 +213,10 @@ export function claimRoutes({ db, config, adminOnly, fetchFn = fetch, lookup = d
     const agent = await claimable(db, req.query.ref);
     const claim = agent ? await db.claims.get(agent.ref) : null;
     res.type('image/svg+xml').set('Cache-Control', 'public, max-age=3600, s-maxage=3600');
-    if (!claim) return res.status(404).send(badgeSvg({ message: 'not claimed', colour: 'grey' }));
+    const look = badgeStyle(req.query);
+    if (!claim) return res.status(404).send(badgeSvg({ message: 'not claimed', colour: 'grey', ...look }));
     db.claims.badgeSeen(agent.ref).catch(() => {});
-    res.send(badgeSvg(badgeFor(agent)));
+    res.send(badgeSvg({ ...badgeFor(agent), ...look }));
   });
 
   // ----- Organiser -----
@@ -235,7 +236,7 @@ const FRESH_DAYS = 8;
 const GRADE_COLOURS = { A: 'green', B: 'green', C: 'yellow', D: 'red', F: 'red' };
 // What the badge says. A grade only for a Polly Tested agent; "Up" only if the last check was recent and it answered.
 export function badgeFor(agent, now = new Date()) {
-  if (agent.tested) return { message: `Polly Tested · ${agent.tested.grade} · Squawk ${Number(agent.tested.score)}`, colour: GRADE_COLOURS[agent.tested.grade] ?? 'grey' };
+  if (agent.tested) return { message: `Polly Tested · ${agent.tested.grade} · Squawk ${Number(agent.tested.score)}`, colour: GRADE_COLOURS[agent.tested.grade] ?? 'grey', grade: agent.tested.grade, score: Number(agent.tested.score) };
   const c = checkResult(agent.row);
   if (c && now - new Date(c.at) < FRESH_DAYS * 864e5) {
     const day = new Date(c.at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });

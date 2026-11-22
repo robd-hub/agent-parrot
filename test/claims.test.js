@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { connect } from '../src/db.js';
 import { createApp } from '../src/routes.js';
 import { proofTargets, githubRepo, claimToken, badgeFor, findToken } from '../src/claims.js';
-import { badgeSvg } from '../src/claim-views.js';
+import { badgeSvg, badgeStyle } from '../src/claim-views.js';
 import { fromMcp, prepare } from '../src/directories.js';
 import { agentById } from '../src/agents.js';
 
@@ -82,7 +82,7 @@ test('a code on a private address is never fetched', async () => {
 
 test('badges only say what was measured', () => {
   const now = new Date('2026-11-22T12:00:00Z');
-  assert.deepEqual(badgeFor({ tested: { grade: 'A', score: 98 } }, now), { message: 'Polly Tested · A · Squawk 98', colour: 'green' });
+  assert.deepEqual(badgeFor({ tested: { grade: 'A', score: 98 } }, now), { message: 'Polly Tested · A · Squawk 98', colour: 'green', grade: 'A', score: 98 });
   assert.deepEqual(badgeFor({ row: { checked_at: '2026-11-21T09:00:00Z', up: true, health: {} } }, now), { message: 'Claimed · Up · checked 21 Nov', colour: 'green' });
   assert.equal(badgeFor({ row: { checked_at: '2026-11-21T09:00:00Z', up: false, health: {} } }, now).colour, 'red');
   assert.deepEqual(badgeFor({ row: { checked_at: '2026-10-01T09:00:00Z', up: true } }, now), { message: 'Claimed', colour: 'blue' }, 'an old check is not shown');
@@ -90,6 +90,24 @@ test('badges only say what was measured', () => {
   const svg = badgeSvg({ message: '<b>&', colour: 'green' });
   assert.match(svg, /^<svg /);
   assert.ok(!svg.includes('<b>&'));
+});
+
+test('makers can tailor the badge: a dark or light card and their own colour', () => {
+  assert.deepEqual(badgeStyle({}), { style: 'flat', accent: null });
+  assert.deepEqual(badgeStyle({ style: 'dark', accent: '2EF2A4' }), { style: 'dark', accent: '#2ef2a4' });
+  assert.deepEqual(badgeStyle({ style: 'neon', accent: 'red;"><script>' }), { style: 'flat', accent: null }, 'anything odd falls back');
+  const tested = { message: 'Polly Tested · A · Squawk 98', colour: 'green', grade: 'A', score: 98 };
+  const dark = badgeSvg({ ...tested, style: 'dark', accent: '#2ef2a4' });
+  assert.match(dark, /^<svg /);
+  assert.match(dark, /Polly Tested · Squawk 98/);
+  assert.match(dark, />A<\/text>/);
+  assert.match(dark, /#2ef2a4/);
+  assert.match(dark, /#0b1210/);
+  assert.match(badgeSvg({ ...tested, style: 'light' }), /#ffffff/);
+  const down = badgeSvg({ message: 'Claimed · Down · checked 21 Nov', colour: 'red', style: 'dark', accent: '#2ef2a4' });
+  assert.ok(!down.includes('#2ef2a4'), 'a bad result never takes the maker colour');
+  assert.match(down, /#f04438/);
+  assert.match(badgeSvg({ ...tested, accent: '#2ef2a4' }), /fill="#2ef2a4"/, 'the classic badge takes the colour too');
 });
 
 test('builders claim with GitHub or a code, get a tick, a badge and a basic check', async (t) => {
@@ -126,6 +144,9 @@ test('builders claim with GitHub or a code, get a tick, a badge and a basic chec
   assert.equal(badge.status, 200);
   assert.match(badge.type, /image\/svg\+xml/);
   assert.match(badge.text, /Claimed/);
+  const card = await visitor.req(`/badge.svg?ref=${encodeURIComponent(ref)}&style=light&accent=ff6600`);
+  assert.equal(card.status, 200);
+  assert.match(card.text, /AGENT PARROT/);
   assert.match((await ada.req('/me')).text, /Your agents/);
   assert.ok(!(await ada.req('/me')).text.includes('looks like yours'), 'no longer offered once claimed');
 

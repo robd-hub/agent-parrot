@@ -548,3 +548,15 @@ code.wrap { overflow-wrap: anywhere; word-break: break-all; }
 .lite-fail { color: var(--red); }
 a.button { display: inline-block; padding: 10px 16px; border-radius: var(--radius-sm); background: var(--green); color: #fff; text-decoration: none; font-weight: 600; }
 .lite-list { list-style: none; padding-left: 0; } .lite-list li { margin: 6px 0; }
+
+/* Claim page: tailor your badge */
+.badge-controls { display: flex; flex-wrap: wrap; gap: 12px 28px; align-items: flex-end; margin: 12px 0; }
+.badge-controls fieldset { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.badge-controls legend { width: 100%; margin-bottom: 4px; }
+.badge-opt { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; white-space: nowrap; }
+.badge-opt input { width: auto; margin: 0; padding: 0; }
+.badge-colour { display: flex; align-items: center; gap: 10px; margin: 0; flex-wrap: wrap; }
+.badge-colour input[type=color] { width: 44px; height: 32px; padding: 2px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); cursor: pointer; }
+.badge-preview { padding: 20px; border-radius: var(--radius-sm); border: 1px solid var(--line); background: #ffffff; overflow-x: auto; }
+.badge-preview-dark { background: #0b1210; border-color: #24352c; }
+.badge-preview img { display: block; max-width: 100%; height: auto; }

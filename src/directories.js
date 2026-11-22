@@ -254,6 +254,8 @@ export async function syncDirectories({ db, config, fetchFn = fetch, budgetMs = 
     if (done) await db.settings.set('sync_erc8004_at', now().toISOString());
     report.push({ source: 'erc8004', saved, removed, done, ...(errors.length ? { error: errors.join('; ') } : {}) });
   }
+  // Reviews left on a listing that is now one of our tested agents move to that agent's page.
+  await db.reviews?.adopt?.();
   return report;
 }
 

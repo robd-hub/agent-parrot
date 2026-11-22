@@ -26,7 +26,7 @@ Postgres via `pg` on Vercel (Neon), PGlite locally and in tests (`./.data/pg`). 
 ```bash
 npm install         # once
 npm run dev         # http://localhost:3000, reloads on save, reads .env if present
-npm test            # node --test, every file in test/ (47 tests, all should pass)
+npm test            # node --test, every file in test/ (53 tests, all should pass)
 npm run sync-grades # copy grades from ../agent-report-card/data into data/ (both repos side by side)
 npm start           # what Vercel runs
 ```
@@ -67,6 +67,7 @@ npm start           # what Vercel runs
 | `src/makers.js` | Key details for tested agents (maker, links, dates, model, pricing) and the maker reputation score |
 | `src/compare.js`, `src/compare-views.js` | `/compare?a=<ref>&b=<ref>`: two agents side by side. A ref is a tested id (`coder`) or a listed `source:id` (`mcp:com.acme/weather`, `erc8004:8453:7`) |
 | `src/openness.js` | Licence (from the GitHub repo or a confirmed fact) and a short data-privacy note; "not known" otherwise |
+| `src/reviews.js`, `src/review-views.js` | Member reviews and ratings: one per member per agent (tested id or listed `source:id`), rate limits, reports, `/admin/reviews`. Kept apart from grades and the reputation score |
 | `data/agent-facts.json` | Hand-kept facts the grade data lacks (maker, website, pricing). Only confirmed facts; leave blanks blank |
 | `src/feed.js` | Public grades feed: `/api/grades.json`, `/api/grades/<id>.json`, `/api/grades/lookup`, and the `/feed` page |
 | `data/listed-on.json` | Hand-kept: where our own tested agents are registered, and entries never shown as untested |

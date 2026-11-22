@@ -5,12 +5,12 @@ Rules and commands are in `CLAUDE.md`. Update this file when something below cha
 
 ## Live now
 
-- Repo `robd-hub/agent-parrot`, default branch `main`. `npm test`: 47 tests, all passing.
+- Repo `robd-hub/agent-parrot`, default branch `main`. `npm test`: 53 tests, all passing.
 - Vercel project `agent-parrot` (team designimp-projects, Hobby plan), linked to the repo, deploys `main`
   automatically: https://agent-parrot.vercel.app. Behind Vercel's login until a custom domain is added,
   so the public can't see it yet.
 - Neon Postgres connected through Vercel. Set in Vercel by Rob so far: `SESSION_SECRET`, `DATABASE_URL`,
-  `ADMIN_PASSWORD`, `GRAPH_API_KEY`.
+  `ADMIN_PASSWORD`, `GRAPH_API_KEY`, `GITHUB_TOKEN`, `ANTHROPIC_API_KEY`, and Google, GitHub and LinkedIn sign-in keys.
 - Daily crons: `/api/cron/directories` 05:00 UTC, `/api/cron/hallucination` 06:00 UTC, `/api/cron/health` 01:00 and 13:00 UTC.
 
 ## Done (all merged with Rob's OK)
@@ -28,24 +28,15 @@ Rules and commands are in `CLAUDE.md`. Update this file when something below cha
 | #10 | Key details on every agent page (maker, links, first listed, how to connect, model, pricing), pages for each `/listed` agent and maker, maker reputation score (`src/makers.js`) |
 | #11 | Health checks (`src/health.js`): each listed agent visited at most once a day; Up/Down, response time, uptime % and tools on pages; "only agents that answered" filter; uptime in maker reputation. Cut to twice a day (01:00, 13:00 UTC) to save free-plan use |
 | #14 | Prices and activity: real x402 price per call (read, never paid), GitHub code activity (`src/activity.js`), last on-chain activity for ERC-8004 agents, recent activity in maker reputation |
+| #15 | Compare two agents (`/compare`, tested or listed side by side), Licence and Data privacy rows on agent pages (`src/openness.js`) |
+| #16 | Member reviews and ratings (`src/reviews.js`, `src/review-views.js`): 1 to 5 stars and an optional note, one per member per agent, edit or delete. Average on agent pages, `/agents` and `/listed` cards, maker pages and `/compare` ("Better" once both have 3+). Never changes grades, the Pecking Order or maker reputation (shown beside it as not counted). 10 saves/hour per member, 300/hour site-wide, 20 reports/day, hidden after 3 reports, makers can't review their own agent (GitHub login), names as "Ada L.". `/admin/reviews` to hide, restore or delete. Reviews on a listing move to the tested agent once matched |
 | #13 | Grade history chart on each tested agent's page (every past Agent Report Card run) and a Security section (HTTPS, key, payment, tool powers) |
-
-## In review
-
-- Compare two agents (branch `claude/compare-agents`): `/compare` puts any two agents (tested or listed) side by side:
-  grade, honesty, grade history, price per call, health and uptime, security flags, tools, activity, licence, data
-  privacy, maker and reputation, where listed. "Better" marks the higher score, uptime, reputation and listings and the
-  lower price, only when both have a number. Compare links on tested and listed agent pages, `/listed` cards, and the
-  `/agents` and `/listed` pages. Agent pages also get Licence and Data privacy rows (`src/openness.js`): the licence
-  comes from the GitHub repo's licence (read weekly) or `licence` in `data/agent-facts.json`; privacy shows a policy
-  only from `privacy`/`privacyUrl` in that file, plus plain facts (where data goes, x402 puts the wallet on chain).
-  Everything else says "not known". No sign-in needed. Reviews and ratings wait for the sign-in apps.
 
 ## Waiting on Rob
 
 1. Buy the domains agentparrot.ai and agentparrots.com (about $170, Rob buys them on Cloudflare himself).
    Adding one to Vercel is what makes the site public.
-2. Sign-in apps (Google, GitHub, LinkedIn), the Claude API key and the email settings in `.env.example`.
+2. Email settings in `.env.example` (for sign-in by email and The Squawk). Google, GitHub and LinkedIn sign-in and the Claude API key are set in Vercel (22 Nov 2026), so members can sign in and review now.
    Rob adds the values in Vercel himself. Never ask for them in chat and never put them in a file or PR.
 3. Move to Vercel Pro (about $20 a month) once the site takes money.
 4. Agent Parrot LinkedIn page, 20 builders to invite, a launch date.

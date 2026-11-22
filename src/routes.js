@@ -20,6 +20,8 @@ import { listedOn } from './directories.js';
 import { listedOnBlock, testedDetailsBlock } from './directory-views.js';
 import { reputationFor } from './directory-routes.js';
 import { testedDetails } from './makers.js';
+import { reviewRoutes, reviewSection } from './reviews.js';
+import { reviewsBlock, ratingFact, noticeFor } from './review-views.js';
 
 // A complete app around the routes, used by tests.
 export function createApp(options) {
@@ -123,7 +125,8 @@ export function createRoutes({
     const category = pickCategory(req.query.category);
     const agents = allAgents().filter((a) => !category || a.category === category);
     const listings = (await db.listings.listed()).filter((l) => !category || l.category === category);
-    res.status(status).send(views.directoryPage({ agents, listings, category, signedIn: Boolean(req.session.uid), ...extra }));
+    const ratings = await db.reviews.summaries(agents.map((a) => a.id));
+    res.status(status).send(views.directoryPage({ agents, listings, ratings, category, signedIn: Boolean(req.session.uid), ...extra }));
   };
   app.get('/agents', (req, res) => directory(req, res, { notice: req.query.thanks ? "Thanks! Polly will take a look at it." : null }));
 
@@ -144,8 +147,11 @@ export function createRoutes({
     const listed = listedOnBlock(listedOn(agent, rows));
     const d = testedDetails(agent, rows);
     const details = testedDetailsBlock(d, { gradedAt: agent.gradedAt, rows, rep: (await reputationFor(db, d.makerKey))?.rep });
-    res.set('Cache-Control', 'public, s-maxage=600, stale-while-revalidate=3600');
-    res.send(views.agentPage({ agent, place: order.find((a) => a.id === agent.id).place, total: order.length, listed, details }));
+    const reviews = await reviewSection(db, { agent: { ref: agent.id, name: agent.name, makerKey: d.makerKey }, member: await memberOf(req), notice: noticeFor(req.query.review) });
+    // Signed-in members see their own review form, so their copy of the page is never cached for others.
+    res.set('Cache-Control', req.session.uid ? 'private, no-store' : 'public, s-maxage=600, stale-while-revalidate=3600');
+    res.send(views.agentPage({ agent, place: order.find((a) => a.id === agent.id).place, total: order.length, listed, details,
+      rating: ratingFact(reviews.summary), reviews: reviewsBlock(reviews, { tested: true }) }));
   });
 
   app.get('/pecking-order', (req, res) => {
@@ -343,6 +349,7 @@ export function createRoutes({
   app.use(directoryRoutes({ db, config, adminOnly, fetchFn, lookup }));
   app.use(feedRoutes({ config }));
   app.use(compareRoutes({ db }));
+  app.use(reviewRoutes({ db, adminOnly }));
 
   app.get('/admin', adminOnly, async (req, res) => {
     res.set('Cache-Control', 'private, no-store');

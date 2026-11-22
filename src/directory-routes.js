@@ -7,6 +7,9 @@ import { checkHealth } from './health.js';
 import { checkActivity } from './activity.js';
 import { makerKeyFrom, makerReputation, testedByMaker } from './makers.js';
 import { pageNotFound } from './views.js';
+import { reviewSection, combineSummaries } from './reviews.js';
+import { noticeFor } from './review-views.js';
+import { listedRef } from './directory-views.js';
 
 // A maker's reputation, worked out from what we hold about them (see src/makers.js).
 export async function reputationFor(db, key) {
@@ -30,9 +33,12 @@ export function directoryRoutes({ db, config, adminOnly, fetchFn = fetch, lookup
       db.listed.search({ query, source, live, limit: PER_PAGE, offset: (page - 1) * PER_PAGE }),
       db.listed.counts(),
     ]);
-    const makerCounts = await db.listed.makerCounts([...new Set(rows.map((r) => r.maker_key).filter(Boolean))]);
+    const [makerCounts, ratings] = await Promise.all([
+      db.listed.makerCounts([...new Set(rows.map((r) => r.maker_key).filter(Boolean))]),
+      db.reviews.summaries(rows.map(listedRef)),
+    ]);
     res.set('Cache-Control', 'public, s-maxage=600, stale-while-revalidate=3600');
-    res.send(listedPage({ rows, total, query, source, live, page, counts, makerCounts }));
+    res.send(listedPage({ rows, total, query, source, live, page, counts, makerCounts, ratings }));
   });
 
   // One listed agent. MCP names have a slash in them, so the id can be several path segments.
@@ -44,8 +50,11 @@ export function directoryRoutes({ db, config, adminOnly, fetchFn = fetch, lookup
     if (!r) return res.status(404).send(pageNotFound());
     const maker = await reputationFor(db, r.maker_key);
     const more = maker ? (await db.listed.byMaker(r.maker_key, 11)).filter((m) => m.source_id !== r.source_id || m.source !== r.source).slice(0, 10) : [];
-    res.set('Cache-Control', 'public, s-maxage=600, stale-while-revalidate=3600');
-    res.send(listedAgentPage({ r, rep: maker?.rep, more }));
+    const member = (req.session.uid && (await db.get(req.session.uid))) || null;
+    const reviews = await reviewSection(db, { agent: { ref: listedRef(r), name: r.name, makerKey: r.maker_key }, member, notice: noticeFor(req.query.review) });
+    // Signed-in members see their own review form, so their copy of the page is never cached for others.
+    res.set('Cache-Control', req.session.uid ? 'private, no-store' : 'public, s-maxage=600, stale-while-revalidate=3600');
+    res.send(listedAgentPage({ r, rep: maker?.rep, more, reviews }));
   });
 
   app.get('/makers/:kind/:id', async (req, res) => {
@@ -55,8 +64,10 @@ export function directoryRoutes({ db, config, adminOnly, fetchFn = fetch, lookup
     const listed = await db.listed.byMaker(key, 100);
     const named = listed.find((r) => r.maker_name);
     const name = named?.maker_name ?? req.params.id;
+    const ratings = await db.reviews.summaries([...maker.tested.map((a) => a.id), ...listed.map(listedRef)]);
     res.set('Cache-Control', 'public, s-maxage=600, stale-while-revalidate=3600');
-    res.send(makerPage({ key, name, url: named?.maker_url, rep: maker.rep, tested: maker.tested, listed, total: maker.stats.agents }));
+    res.send(makerPage({ key, name, url: named?.maker_url, rep: maker.rep, tested: maker.tested, listed, total: maker.stats.agents,
+      ratings, memberRating: combineSummaries(Object.values(ratings)) }));
   });
 
   const adminPage = async (res, report, healthReport) => {

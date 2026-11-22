@@ -53,7 +53,7 @@ test('public pages load', async (t) => {
   const s = await start();
   t.after(s.close);
   for (const p of ['/', '/agents', '/agents/coder', '/pecking-order', '/pecking-order?category=writing', '/news', '/game', '/articles',
-    '/articles/how-the-polly-test-works', '/get-polly-tested', '/signin', '/signup', '/privacy', '/squawk', '/sitemap.xml', '/robots.txt']) {
+    '/articles/how-the-polly-test-works', '/articles/why-trust-a-polly-grade', '/get-polly-tested', '/signin', '/signup', '/privacy', '/squawk', '/sitemap.xml', '/robots.txt']) {
     assert.equal((await s.req(p)).status, 200, p);
   }
   assert.equal((await s.req('/agents/nope')).status, 404);

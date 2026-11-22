@@ -186,3 +186,26 @@ test('a Polly Tested agent is claimed on its own page and its badge shows the gr
   const ada = await s.member('ada');
   assert.match((await ada.req('/claim', { method: 'POST', form: { ref: 'coder', method: 'github' } })).location, /claim=github|claim=taken/);
 });
+
+test('only the member who claimed a tested agent (and admin) can open its findings report', async (t) => {
+  const s = await start();
+  t.after(s.close);
+  const visitor = s.client();
+  const before = await visitor.req('/agents/cheap-first/findings');
+  assert.equal(before.status, 403);
+  assert.match(before.text, /Claim it/);
+  const rob = await s.member('robd');
+  await rob.req('/claim', { method: 'POST', form: { ref: 'cheap-first', method: 'github' } });
+  const mine = await rob.req('/agents/cheap-first/findings');
+  assert.equal(mine.status, 200);
+  assert.match(mine.text, /Only you can see this page/);
+  assert.match(mine.cache, /no-store/);
+  const ada = await s.member('ada');
+  const theirs = await ada.req('/agents/cheap-first/findings');
+  assert.equal(theirs.status, 403);
+  assert.match(theirs.text, /Only the member who claimed this agent/);
+  assert.equal((await visitor.req('/admin/findings/coder')).status, 401);
+  assert.match((await visitor.req('/admin/findings/coder', { headers: admin })).text, /Findings report/);
+  assert.equal((await visitor.req('/agents/nobody/findings')).status, 404);
+  assert.match((await visitor.req('/agents/cheap-first')).text, /See your findings report/);
+});

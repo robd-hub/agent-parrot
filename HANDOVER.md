@@ -36,6 +36,13 @@ Rules and commands are in `CLAUDE.md`. Update this file when something below cha
 | #17 | Weekly top-movers digest (`src/digest.js`, `src/digest-views.js`): biggest grade climbs and drops, first Polly Tests, agents that went quiet or came back (health), member reviews, new directory listings, top 3. Built Mondays 07:00 UTC and kept per week (`digests` table); earlier weeks are filled in from grade history (no health for those). Public `/digest` and `/digest/<monday>`; `/admin/digest` has the ready-to-post LinkedIn text with a copy button. Rob posts it himself, nothing is auto-posted |
 | #13 | Grade history chart on each tested agent's page (every past Agent Report Card run) and a Security section (HTTPS, key, payment, tool powers) |
 
+## In review
+
+- Free Lite Check (branch `claude/lite-check`, with grader PR robd-hub/agent-report-card#58). Scoping doc:
+  https://claude.ai/artifact/URF1ntgeCiDFo3yKhDza1b. `/admin/lite` lets Rob run checks; members can't until he ticks
+  "Open to members". Needs `LITE_SECRET` (same value) in both Vercel projects. Not built yet: the public "Lite checked"
+  badge on claimed listings, and "Free Lite Check" buttons on `/listed` and agent pages (step 4, needs Rob's OK).
+
 ## Waiting on Rob
 
 1. Buy the domains agentparrot.ai and agentparrots.com (about $170, Rob buys them on Cloudflare himself).

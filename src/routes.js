@@ -27,6 +27,7 @@ import { agentReportRoutes, reportSection } from './agent-reports.js';
 import { reportNoticeFor } from './agent-report-views.js';
 import { claimRoutes, claimInfo, claimsForMember } from './claims.js';
 import { claimTag, memberClaimsBlock } from './claim-views.js';
+import { testRequestRoutes, myRequestsBlock } from './test-requests.js';
 
 // A complete app around the routes, used by tests.
 export function createApp(options) {
@@ -335,7 +336,7 @@ export function createRoutes({
   app.get('/me', signedIn, joined, async (req, res) => {
     const [inviteCode, invited, streak, claims] = await Promise.all([db.invites.codeFor(req.member.id), db.invites.count(req.member.id), db.game.streak(req.member.id, today()), claimsForMember(db, req.member)]);
     res.set('Cache-Control', 'private, no-store');
-    res.send(views.mePage({ member: req.member, inviteCode, invited, streak, claims: memberClaimsBlock(claims) }));
+    res.send(views.mePage({ member: req.member, inviteCode, invited, streak, claims: memberClaimsBlock(claims) + myRequestsBlock(await db.testRequests.mine(req.member.id)) }));
   });
 
   app.post('/remove', signedIn, async (req, res) => {
@@ -367,6 +368,7 @@ export function createRoutes({
   app.use(agentReportRoutes({ db, adminOnly }));
   app.use(claimRoutes({ db, config, adminOnly, fetchFn, lookup }));
   app.use(digestRoutes({ db, config, adminOnly, now }));
+  app.use(testRequestRoutes({ db, config, fetchFn, now }));
 
   app.get('/admin', adminOnly, async (req, res) => {
     res.set('Cache-Control', 'private, no-store');
@@ -449,7 +451,7 @@ export function createRoutes({
 
   app.get('/sitemap.xml', async (req, res) => {
     const xmlEsc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const urls = ['/', '/agents', '/listed', '/pecking-order', '/news', '/game', '/articles', '/get-polly-tested', '/feed', '/squawk', '/digest', '/privacy'].map((p) => ({ loc: p }));
+    const urls = ['/', '/agents', '/listed', '/pecking-order', '/news', '/game', '/articles', '/get-polly-tested', '/request', '/feed', '/squawk', '/digest', '/privacy'].map((p) => ({ loc: p }));
     for (const a of allAgents()) urls.push({ loc: `/agents/${a.id}`, lastmod: a.gradedAt.slice(0, 10) });
     for (const x of ARTICLES) urls.push({ loc: `/articles/${x.slug}`, lastmod: x.date });
     for (const w of await db.digest.weeks()) urls.push({ loc: `/digest/${w}` });

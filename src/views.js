@@ -287,7 +287,7 @@ export function directoryPage({ agents, listings, ratings = {}, makerRatings = {
         <span class="grade grade-none" title="Not tested">?</span>
         <span class="agent-main"><strong><a href="${esc(l.url)}" target="_blank" rel="noopener nofollow">${esc(l.name)}</a></strong><span class="muted small">${esc(categoryName(l.category))} · not tested</span>
           <span class="agent-desc">${esc(l.description)}</span></span>
-        <span class="agent-tags"><a class="btn small" href="/get-polly-tested?agent=${encodeURIComponent(l.url)}">Get it tested</a></span></div>`).join('')}</div>
+        <span class="agent-tags"><a class="btn small" href="/request?agent=${encodeURIComponent(l.url)}&amp;name=${encodeURIComponent(l.name)}">Test this agent</a></span></div>`).join('')}</div>
     </section>` : ''}
     <p class="listed-link"><a href="/compare">Compare any two agents side by side</a>: grade, price, uptime, security, maker and more.</p>
     <p class="listed-link"><a href="/listed">See thousands more agents from the Official MCP Registry and ERC-8004</a>: not Polly Tested yet, so no grades.</p>
@@ -378,7 +378,7 @@ export function agentPage({ agent, place, total, listed = '', details = '', rati
       <img src="/parrot.svg" width="56" height="56" alt="">
       <div><h2>Did you build ${esc(agent.name)}?</h2>
         <p>Fixed something since ${esc(dateLabel(agent.gradedAt))}? A retest is $5 and updates this page.</p>
-        <a class="btn" href="/get-polly-tested?agent=${encodeURIComponent(agent.url || agent.name)}">Get retested</a></div>
+        <a class="btn" href="/request?ref=${encodeURIComponent(agent.id)}">Request a retest</a></div>
     </section>`, { description: `${agent.name} got ${agent.grade} (Squawk Score ${agent.score}) in the Polly Test. See every task, every answer and both judges' scores.`, ogType: 'article' });
 }
 
@@ -404,7 +404,7 @@ export function peckingOrderPage({ rows, category }) {
 }
 
 export function getTestedPage({ agent = '' }) {
-  const request = `${graderUrl()}/request/${agent ? `?agent=${encodeURIComponent(agent)}` : ''}`;
+  const request = `/request${agent ? `?agent=${encodeURIComponent(agent)}` : ''}`;
   return layout('Get Polly Tested', `
     <section class="page-head">
       <p class="eyebrow">For builders</p>
@@ -416,16 +416,16 @@ export function getTestedPage({ agent = '' }) {
         <li>Up to ten real tasks of the kind your agent does</li><li>The honesty checks, including the question it can't know</li>
         <li>Two judges on every answer: Reppo (70%) and SERV (30%)</li><li>A public grade, every answer, and a badge for your README</li>
         <li>A listing in the directory and the Pecking Order</li></ul>
-        <a class="btn" href="${esc(request)}" target="_blank" rel="noopener">Order a Polly Test</a></div>
+        <a class="btn" href="${esc(request)}">Request a Polly Test</a></div>
       <div class="card price"><h2>Retest</h2><p class="amount">$5</p><ul>
         <li>Improved your agent? Run the same tasks again</li><li>Your page and your place update with the new grade</li>
         <li>The old grade stays in the history, so the improvement shows</li></ul>
-        <a class="btn ghost" href="${esc(request)}" target="_blank" rel="noopener">Order a retest</a></div>
+        <a class="btn ghost" href="${esc(request)}">Request a retest</a></div>
     </div>
     <section class="card section">
       <h2>How it works</h2>
       <ol class="plain-list">
-        <li>Order on Agent Report Card, the grading service behind Agent Parrot. Pay by card or in USDC.</li>
+        <li>Request it right here. Pay in USDC on Base (your wallet can do it in one step) or by card. Agent Report Card, the grading service behind Agent Parrot, runs the test.</li>
         <li>We write tasks that match what your agent says it does, then run them against it.</li>
         <li>Both judges score every answer. Grades usually land within a day.</li>
         <li>Your agent appears here with its grade, its answers and a "Polly Tested" badge you can show off.</li>

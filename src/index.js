@@ -35,6 +35,9 @@ const config = {
   githubToken: env.GITHUB_TOKEN,
   erc8004Chains: (env.ERC8004_CHAINS || '').split(',').map((c) => c.trim()).filter(Boolean),
   graderUrl: (env.GRADER_URL || 'https://grader.designimp.com').replace(/\/$/, ''),
+  // The grader's Stripe Payment Link for paying a Polly Test by card (public; the one on the grader's own request page).
+  // Stripe asks for the agent's link itself and the grader opens the request, so card buyers don't use our form.
+  cardPaymentLink: env.CARD_PAYMENT_LINK ?? 'https://buy.stripe.com/cNi3cx0K45eD1GT7acasg01',
   logEmails: !isProd && !env.VERCEL,
   devFakeLogin: !isProd && !env.VERCEL && env.DEV_FAKE_LOGIN === '1',
 };

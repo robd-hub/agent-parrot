@@ -154,8 +154,6 @@ const sourceTag = (r) => `<span class="tag">${esc(r.source === 'erc8004' ? `ERC-
 function listedCard(r, makerCounts = {}, rating = null, reports = null, makerRating = null) {
   const link = listedPath(r);
   const others = (makerCounts[r.maker_key] ?? 0) - 1;
-  // Builders order a test on Agent Report Card with the address Polly should call.
-  const testWith = r.endpoint || r.url || r.name;
   return `<div class="agent-card untested">
       <span class="grade grade-none" title="Not Polly Tested yet">?</span>
       <span class="agent-main"><strong><a href="${esc(link)}">${esc(r.name)}</a></strong>
@@ -163,7 +161,7 @@ function listedCard(r, makerCounts = {}, rating = null, reports = null, makerRat
         ${r.description ? `<span class="agent-desc">${esc(r.description)}</span>` : ''}</span>
       <span class="agent-tags">${ratingTag(rating)}${makerRatingTag(makerRating)}${healthTag(r)}${toolsOf(r)?.length ? `<span class="tag">${toolsOf(r).length}${r.health?.toolsMore ? '+' : ''} ${r.source === 'erc8004' && !r.details?.mcp ? 'skills' : 'tools'}</span>` : ''}${shortPrice(r) ? `<span class="tag">${esc(shortPrice(r))}</span>` : ''}${[communityTag(reports), ...cardFlags(r)].filter(Boolean).slice(0, 2).map((f) => `<span class="tag ${f.level === 'bad' ? 'tag-fail' : 'tag-mid'}">${esc(f.text)}</span>`).join('')}${sourceTag(r)}${r.x402 ? '<span class="tag">x402</span>' : ''}
         <a class="btn small ghost" href="${esc(compareHref(listedRef(r)))}">Compare</a>
-        <a class="btn small" href="/get-polly-tested?agent=${encodeURIComponent(testWith)}">Get it tested</a></span>
+        <a class="btn small" href="/request?ref=${encodeURIComponent(listedRef(r))}">Test this agent</a></span>
     </div>`;
 }
 
@@ -207,7 +205,7 @@ export function listedPage({ rows, total, query, source, live = false, page, cou
       <img src="/parrot.svg" width="56" height="56" alt="">
       <div><h2>Built one of these?</h2>
         <p>Get it Polly Tested and it moves into the directory with a real grade, every answer and a place in the Pecking Order.</p>
-        <a class="btn" href="/get-polly-tested">Get Polly Tested</a></div>
+        <a class="btn" href="/request">Request a Polly Test</a></div>
     </section>`, { description: 'AI agents from the Official MCP Registry and the ERC-8004 registry that have not been Polly Tested yet.' });
 }
 
@@ -254,7 +252,6 @@ export function adminDirectoriesPage({ counts, state, hasGraphKey, hasGithubToke
 export function listedAgentPage({ r, rep, more = [], reviews = null, report = null, claim = '', makerRating = null }) {
   const d = r.details ?? {};
   const isMcp = r.source === 'mcp';
-  const testWith = r.endpoint || r.url || r.name;
   const kind = MAKER_KINDS[String(r.maker_key).split(':')[0]];
   const connect = isMcp
     ? [d.transports?.length ? `MCP over ${d.transports.join(', ')}` : 'MCP', d.needsKey ? 'needs a key or payment' : ''].filter(Boolean).join(', ')
@@ -279,7 +276,7 @@ export function listedAgentPage({ r, rep, more = [], reviews = null, report = nu
         ${reviews ? `<div class="facts">${ratingFact(reviews.summary)}</div>` : ''}
         <div class="hero-actions">
           ${r.url || r.endpoint ? `<a class="btn" href="${esc(r.url || r.endpoint)}" target="_blank" rel="noopener nofollow">Visit the agent</a>` : ''}
-          <a class="btn ghost" href="/get-polly-tested?agent=${encodeURIComponent(testWith)}">Get it tested</a>
+          <a class="btn ghost" href="/request?ref=${encodeURIComponent(listedRef(r))}">Test this agent</a>
           <a class="btn ghost" href="${esc(compareHref(listedRef(r)))}">Compare</a>
         </div>
       </div>
@@ -314,7 +311,7 @@ export function listedAgentPage({ r, rep, more = [], reviews = null, report = nu
       <img src="/parrot.svg" width="56" height="56" alt="">
       <div><h2>Did you build ${esc(r.name)}?</h2>
         <p>Get it Polly Tested and it moves into the directory with a real grade, and your maker reputation goes up with it.</p>
-        <a class="btn" href="/get-polly-tested?agent=${encodeURIComponent(testWith)}">Get Polly Tested</a></div>
+        <a class="btn" href="/request?ref=${encodeURIComponent(listedRef(r))}">Request a Polly Test</a></div>
     </section>`, { description: `${r.name}${r.maker_name ? ` by ${r.maker_name}` : ''}: ${r.description || 'an AI agent'} Listed on ${SOURCES[r.source]?.name ?? r.source}, not Polly Tested yet.` });
 }
 

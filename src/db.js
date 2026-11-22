@@ -194,6 +194,24 @@ const SCHEMA = `
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
   );
   CREATE INDEX IF NOT EXISTS claims_member ON claims (member_id);
+  -- Polly Test requests sent from /request (src/test-requests.js). The grader opens the real request as a GitHub
+  -- issue; we keep its link so the buyer has a status page here. member_id is empty for visitors who weren't signed in.
+  CREATE TABLE IF NOT EXISTS test_requests (
+    id               TEXT PRIMARY KEY,
+    member_id        TEXT REFERENCES members (id) ON DELETE SET NULL,
+    agent_ref        TEXT,
+    agent            TEXT NOT NULL,
+    name             TEXT NOT NULL DEFAULT '',
+    request_url      TEXT NOT NULL UNIQUE,
+    tx               TEXT NOT NULL DEFAULT '',
+    price_usd        NUMERIC,
+    issue_state      TEXT,
+    issue_comments   INTEGER,
+    issue_closed_at  TIMESTAMPTZ,
+    issue_checked_at TIMESTAMPTZ,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+  CREATE INDEX IF NOT EXISTS test_requests_member ON test_requests (member_id, created_at);
   -- Simple on/off switches the organiser flips from the admin pages, such as pausing The Daily Hallucination.
   CREATE TABLE IF NOT EXISTS settings (
     key   TEXT PRIMARY KEY,
@@ -630,6 +648,20 @@ export function openDb(client) {
       // A badge was loaded. Kept to once an hour per claim so badge views stay cheap.
       badgeSeen: (ref) => q("UPDATE claims SET badge_seen_at = now() WHERE agent_ref = $1 AND (badge_seen_at IS NULL OR badge_seen_at < now() - interval '1 hour')", [ref]),
       forAdmin: () => q(`SELECT c.*, m.name, m.email, m.github_login FROM claims c JOIN members m ON m.id = c.member_id ORDER BY c.created_at DESC LIMIT 500`),
+    },
+
+    // Polly Test requests sent from /request (see src/test-requests.js).
+    testRequests: {
+      get: (id) => one('SELECT * FROM test_requests WHERE id = $1', [id]),
+      byRequestUrl: (url) => one('SELECT * FROM test_requests WHERE request_url = $1', [url]),
+      async save({ id, memberId, agentRef, agent, name, requestUrl, tx, priceUsd }) {
+        await q(`INSERT INTO test_requests (id, member_id, agent_ref, agent, name, request_url, tx, price_usd)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (request_url) DO NOTHING`, [id, memberId, agentRef, agent, name, requestUrl, tx, priceUsd]);
+        return one('SELECT * FROM test_requests WHERE request_url = $1', [requestUrl]);
+      },
+      setIssue: (id, { state, comments, closedAt }) =>
+        q('UPDATE test_requests SET issue_state = $2, issue_comments = $3, issue_closed_at = $4, issue_checked_at = now() WHERE id = $1', [id, state, comments, closedAt]),
+      mine: (memberId) => q('SELECT * FROM test_requests WHERE member_id = $1 ORDER BY created_at DESC LIMIT 20', [memberId]),
     },
 
     game: {

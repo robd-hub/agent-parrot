@@ -55,8 +55,7 @@ function badgeBlock({ agent }) {
 }
 
 function nudgeBlock({ agent }) {
-  const testWith = agent.row?.endpoint || agent.row?.url || agent.tested?.url || agent.name;
-  const href = `/get-polly-tested?agent=${encodeURIComponent(testWith)}&from=claim`;
+  const href = `/request?ref=${encodeURIComponent(agent.ref)}&from=claim`;
   return agent.tested
     ? `<section class="card cta-card section"><img src="/parrot.svg" width="56" height="56" alt="">
         <div><h2>Improved it since ${esc(dateLabel(agent.tested.gradedAt))}?</h2>

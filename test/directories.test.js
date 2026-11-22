@@ -93,7 +93,7 @@ test('sync copies the MCP Registry, skips ERC-8004 without a key, and the /liste
   assert.match(page.text, /Sums &lt;b&gt;/, 'names are escaped');
   assert.doesNotMatch(page.text, /local-only|com\.example\/old|robd-hub\/agent-report-card/);
   assert.doesNotMatch(page.text, /Cheap First<\/a>/, 'tested agents stay in the graded directory');
-  assert.match(page.text, /get-polly-tested\?agent=https%3A%2F%2Fcomexampleweather\.example%2Fmcp/);
+  assert.match(page.text, /request\?ref=mcp%3Acom.example%2Fweather/);
   assert.match((await s.req('/listed?q=weather')).text, /1 agent matching/);
   assert.doesNotMatch((await s.req('/listed?q=weather')).text, /Sums/);
   assert.match((await s.req('/listed?q=%25')).text, /No agents match/, 'wildcards are searched literally');

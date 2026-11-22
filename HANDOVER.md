@@ -5,7 +5,7 @@ Rules and commands are in `CLAUDE.md`. Update this file when something below cha
 
 ## Live now
 
-- Repo `robd-hub/agent-parrot`, default branch `main`. `npm test`: 68 tests, all passing.
+- Repo `robd-hub/agent-parrot`, default branch `main`. `npm test`: 76 tests, all passing.
 - Vercel project `agent-parrot` (team designimp-projects, Hobby plan), linked to the repo, deploys `main`
   automatically: https://agent-parrot.vercel.app. Behind Vercel's login until a custom domain is added,
   so the public can't see it yet.
@@ -69,7 +69,14 @@ Rules and commands are in `CLAUDE.md`. Update this file when something below cha
 
 - Grades come from the agent-report-card repo via `npm run sync-grades` (repos side by side). Never edit
   `data/agents.json` by hand; grades must match Agent Report Card exactly.
-- Paid tests ($10, $5 retest) send people to `GRADER_URL` (default https://grader.designimp.com).
+- Paid tests ($10, $5 retest) are requested on our own page, `/request` (PR from `claude/request-a-test`, not merged yet).
+  It posts the form as JSON to the grader's `POST <GRADER_URL>/api/request/` (default https://grader.designimp.com),
+  the same call the grader's own form makes. The grader checks the USDC payment on Base, opens a GitHub issue on
+  robd-hub/agent-report-card and grades it. We keep the issue link in `test_requests` and show `/request/<id>`
+  (paid, being tested, graded, on Agent Parrot). Card payments use the grader's Stripe link (`CARD_PAYMENT_LINK`,
+  defaults to it); Stripe collects the agent link and the grader opens the request itself, so card buyers get no
+  status page here. The grader has no MCP adapter, so MCP addresses are refused before anyone pays. New grades
+  only show on the site after `npm run sync-grades`.
 - Hackathons, listings and registries keep the "Agent Report Card" name. Parrot names are this site only.
 - Rob's own agents on the site: Cheap First (grade A, 98, https://cheap-first.vercel.app/) and the Agent
   Report Card grader. Where they are registered is kept in `data/listed-on.json`.

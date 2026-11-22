@@ -523,3 +523,14 @@ a.tag-claimed:hover, a.tag-unclaimed:hover { text-decoration: underline; }
 .post-box { margin: .5em 0 1.5em; }
 .post-box textarea { width: 100%; box-sizing: border-box; font: .92rem/1.5 var(--body); padding: .8em; border: 1px solid var(--line); border-radius: 10px; background: var(--card, var(--bg)); color: var(--ink); }
 .post-box .row { display: flex; flex-wrap: wrap; align-items: center; gap: 1em; margin-top: .5em; }
+
+/* Request a Polly Test (/request) */
+.request-form h2 { margin-bottom: 0; }
+.request-form [hidden] { display: none; }
+.request-form label small { font-weight: 400; }
+.field-bad input, .field-bad textarea { border-color: var(--red); }
+code.wrap { overflow-wrap: anywhere; word-break: break-all; }
+.rq-steps li { margin: 10px 0; }
+.rq-step.done b { color: var(--green); }
+.rq-step.now b { color: var(--ink); }
+.rq-step:not(.done):not(.now) b { color: var(--muted); }

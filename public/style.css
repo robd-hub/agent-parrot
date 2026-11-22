@@ -477,3 +477,14 @@ th { font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; color:
 .review-report { margin-top: 6px; font-size: .82rem; color: var(--muted); }
 .review-report summary { cursor: pointer; }
 .review-report form { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+
+/* Claim your listing (src/claim-views.js) */
+.tag-claimed { background: color-mix(in srgb, var(--green) 16%, transparent); color: var(--green-ink); text-decoration: none; }
+.tag-unclaimed { background: transparent; border: 1px dashed var(--line, #ccc); color: var(--muted, #666); font-weight: 600; text-decoration: none; }
+a.tag-claimed:hover, a.tag-unclaimed:hover { text-decoration: underline; }
+.agent-hero .tag-claimed, .agent-hero .tag-unclaimed { margin-bottom: 6px; }
+.check-result { font-size: 1.05rem; }
+.check-result.ok b { color: var(--green-ink); }
+.check-result.bad b { color: var(--red, #c92a2a); }
+.invite-link label { display: block; margin-bottom: 4px; }
+.invite-link input { width: 100%; }

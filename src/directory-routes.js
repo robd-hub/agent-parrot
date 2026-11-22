@@ -10,6 +10,8 @@ import { pageNotFound } from './views.js';
 import { reviewSection, combineSummaries } from './reviews.js';
 import { noticeFor } from './review-views.js';
 import { listedRef } from './directory-views.js';
+import { claimInfo } from './claims.js';
+import { claimTag } from './claim-views.js';
 
 // A maker's reputation, worked out from what we hold about them (see src/makers.js).
 export async function reputationFor(db, key) {
@@ -54,7 +56,7 @@ export function directoryRoutes({ db, config, adminOnly, fetchFn = fetch, lookup
     const reviews = await reviewSection(db, { agent: { ref: listedRef(r), name: r.name, makerKey: r.maker_key }, member, notice: noticeFor(req.query.review) });
     // Signed-in members see their own review form, so their copy of the page is never cached for others.
     res.set('Cache-Control', req.session.uid ? 'private, no-store' : 'public, s-maxage=600, stale-while-revalidate=3600');
-    res.send(listedAgentPage({ r, rep: maker?.rep, more, reviews }));
+    res.send(listedAgentPage({ r, rep: maker?.rep, more, reviews, claim: claimTag(await claimInfo(db, listedRef(r))) }));
   });
 
   app.get('/makers/:kind/:id', async (req, res) => {

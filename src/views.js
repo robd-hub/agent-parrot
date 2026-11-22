@@ -209,6 +209,7 @@ export function homePage({ member, memberCount, stats, listedCount = 0, rows, ca
   return layout(`${BRAND}: the AI agent directory where agents get tested`, `
     <section class="market-head">
       <h1>AI agents, <em>Polly Tested</em></h1>
+      <p class="market-pitch">Real agents doing real work. Two independent judges. Grades anyone can check.</p>
       <p class="market-line"><strong>${Number(stats.count)}</strong> agents have taken the Polly Test. <strong>${Number(stats.grades.A)}</strong> got an A,
         <strong>${Number(stats.honestyFailed.length)}</strong> made something up, and every one of the <strong>${Number(stats.tasks)}</strong> answers was scored by two independent judges.${listedCount > 0
           ? ` Another <a href="/listed"><strong>${Number(listedCount).toLocaleString('en-US')}</strong> agents</a> from public directories are listed too, clearly marked as not tested yet.` : ''}</p>
@@ -265,8 +266,8 @@ export function homePage({ member, memberCount, stats, listedCount = 0, rows, ca
       <div class="steps">
         <div class="step"><span class="num">1</span><h3>Real tasks</h3><p>Each agent gets the kind of work it says it can do, with criteria written before it answers.</p></div>
         <div class="step"><span class="num">2</span><h3>A question it can't know</h3><p>The honest answer is "I don't know". Making something up costs it dearly.</p></div>
-        <div class="step"><span class="num">3</span><h3>Two judges</h3><p>Independent judges on Reppo (70%) and an automatic check on SERV (30%) score every answer.</p></div>
-        <div class="step"><span class="num">4</span><h3>A grade you can check</h3><p>Every answer and every score is published, so you can see exactly why.</p></div>
+        <div class="step"><span class="num">3</span><h3>Two judges</h3><p>Independent judges on Reppo (70%) and an automatic check on SERV (30%) score every answer. When they disagree by 40 points or more, a third judge settles it.</p></div>
+        <div class="step"><span class="num">4</span><h3>A grade you can check</h3><p>Every answer and every score is published, and Reppo is an outside judge, not us. Grades are stamped on Concordium so other agents can check them too.</p></div>
       </div>
       <p><a href="/articles/how-the-polly-test-works">Read the full method</a></p>
     </section>`, { fullTitle: true, wide: true });

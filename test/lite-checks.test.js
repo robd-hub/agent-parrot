@@ -16,7 +16,7 @@ const REPLY = {
   checks: [{ id: 'reach', label: 'Answers', status: 'pass', detail: 'Answered 3 of 3 tasks.' }, { id: 'shape', label: 'Answer shape', status: 'warn', detail: 'The answer wasn\'t first on 2 of 3. <b>x</b>' }],
   tasks: [{ kind: 'core', label: 'Core job', score: 60, summary: 'Missed the VAT line.' }],
   findings: [{ from: 'Core job', text: 'Missed the VAT line.' }, { from: 'Answer shape', text: 'Put the answer first.' }],
-  cost: { servCalls: 4, inputTokens: 4000, outputTokens: 300, estimatedUsd: 0.0044 }, note: 'A Lite Check uses 3 tasks.', checkedAt: '2026-11-22T12:00:00Z',
+  cost: { servCalls: 4, inputTokens: 4000, outputTokens: 300, estimatedUsd: 0.0044 }, note: 'A Polly Peek uses 3 tasks.', checkedAt: '2026-11-22T12:00:00Z',
 };
 
 async function start(configExtra = {}) {
@@ -77,7 +77,7 @@ test('addresses are cleaned up so one agent is one agent, and the form is checke
   assert.equal(t.estUsd, 1);
 });
 
-test('Lite Checks stay closed to members until Rob opens them, and admin runs work first', async () => {
+test('Polly Peeks stay closed to members until Rob opens them, and admin runs work first', async () => {
   const app = await start();
   try {
     const ada = await member(app, 'ada');
@@ -136,7 +136,7 @@ test('members get one check per agent a month, three a month each, and private r
     assert.equal((await bob.req(page)).status, 404);
     assert.equal((await app.client().req(page)).status, 404);
     assert.equal((await bob.req(`${page}/run`, { method: 'POST' })).status, 404);
-    assert.match((await ada.req('/me')).text, /Your Lite Checks/);
+    assert.match((await ada.req('/me')).text, /Your Polly Peeks/);
 
     // The same agent, written differently, can't be checked again this month, by anyone.
     r = await bob.req('/lite', { method: 'POST', form: { ...GOOD, agent: 'https://MY-AGENT.example/api/' } });
@@ -149,7 +149,7 @@ test('members get one check per agent a month, three a month each, and private r
     for (const n of [2, 3]) assert.equal((await ada.req('/lite', { method: 'POST', form: { ...GOOD, agent: `https://agent${n}.example/api` } })).status, 303);
     r = await ada.req('/lite', { method: 'POST', form: { ...GOOD, agent: 'https://agent4.example/api' } });
     assert.equal(r.status, 409);
-    assert.match(r.text, new RegExp(`your ${LIMITS.perMemberMonth} free Lite Checks`));
+    assert.match(r.text, new RegExp(`your ${LIMITS.perMemberMonth} free Polly Peeks`));
 
     // After 30 days the agent can be checked again.
     app.tick(31 * 864e5);
@@ -179,7 +179,7 @@ test('a recently Polly Tested agent is pointed to a retest, and a failed run cos
       }
     }
 
-    app.setReply({ status: 'unavailable', error: 'The Lite Check isn\'t switched on here.' });
+    app.setReply({ status: 'unavailable', error: 'The Polly Peek isn\'t switched on here.' });
     const r = await ada.req('/lite', { method: 'POST', form: GOOD });
     await ada.req(`${r.location}/run`, { method: 'POST', headers: { Accept: 'application/json' } });
     assert.match((await ada.req(r.location)).text, /didn't finish/);
@@ -224,7 +224,19 @@ test('the monthly budget and the pause switch stop new checks', async () => {
   }
 });
 
-test('without LITE_SECRET, Lite Checks are off everywhere', async () => {
+test('/peek goes to the Polly Peek page', async () => {
+  const app = await start();
+  try {
+    const r = await app.client().req('/peek?ref=coder');
+    assert.equal(r.status, 301);
+    assert.equal(r.location, '/lite?ref=coder');
+    assert.match((await app.client().req('/lite')).text, /Free Polly Peek/);
+  } finally {
+    app.close();
+  }
+});
+
+test('without LITE_SECRET, Polly Peeks are off everywhere', async () => {
   const app = await start({ liteSecret: undefined });
   try {
     await app.client().req('/admin/lite/settings', { method: 'POST', form: { open: '1' }, headers: admin });

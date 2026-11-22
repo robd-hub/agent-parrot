@@ -1,4 +1,4 @@
-// Lite Check result page: starts the check (it takes about a minute), then reloads to show the result.
+// Polly Peek result page: starts the check (it takes about a minute), then reloads to show the result.
 (() => {
   const box = document.getElementById('lite-run');
   if (!box) return;

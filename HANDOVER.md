@@ -38,10 +38,11 @@ Rules and commands are in `CLAUDE.md`. Update this file when something below cha
 
 ## In review
 
-- Free Lite Check (branch `claude/lite-check`, with grader PR robd-hub/agent-report-card#58). Scoping doc:
-  https://claude.ai/artifact/URF1ntgeCiDFo3yKhDza1b. `/admin/lite` lets Rob run checks; members can't until he ticks
-  "Open to members". Needs `LITE_SECRET` (same value) in both Vercel projects. Not built yet: the public "Lite checked"
-  badge on claimed listings, and "Free Lite Check" buttons on `/listed` and agent pages (step 4, needs Rob's OK).
+- Free Polly Peek (called Lite Check in the grader; merged 22 Nov 2026, grader PRs #58 and #59, Agent Parrot #24 and
+  #25). Scoping doc: https://claude.ai/artifact/URF1ntgeCiDFo3yKhDza1b. Rob's answers (22 Nov 2026): $15 a month and
+  3 per member a month are right, the band stays private, no discount on the full test, name "Polly Peek" (this site
+  only; `/peek` goes to `/lite`). `/admin/lite` lets Rob run checks; members can't until he ticks "Open to members".
+  Not built yet: Polly Peek buttons on `/listed` and agent pages (step 4, needs Rob's OK).
 
 ## Waiting on Rob
 

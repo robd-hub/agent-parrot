@@ -212,7 +212,7 @@ const SCHEMA = `
     created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
   );
   CREATE INDEX IF NOT EXISTS test_requests_member ON test_requests (member_id, created_at);
-  -- Free Lite Checks (src/lite-checks.js). The grader runs them (POST <GRADER_URL>/api/lite/); we keep the result here,
+  -- Free Polly Peeks (src/lite-checks.js). The grader runs them (POST <GRADER_URL>/api/lite/); we keep the result here,
   -- private to the member who ran it (member_id empty for Rob's own runs from /admin/lite). Never part of grades, the
   -- Pecking Order, the digest or maker reputation. agent_key is the cleaned-up address, for the once-a-month rule.
   CREATE TABLE IF NOT EXISTS lite_checks (
@@ -688,7 +688,7 @@ export function openDb(client) {
       mine: (memberId) => q('SELECT * FROM test_requests WHERE member_id = $1 ORDER BY created_at DESC LIMIT 20', [memberId]),
     },
 
-    // Free Lite Checks (see src/lite-checks.js).
+    // Free Polly Peeks (see src/lite-checks.js).
     liteChecks: {
       get: (id) => one('SELECT * FROM lite_checks WHERE id = $1', [id]),
       async create({ id, memberId, agentRef, agentKey, agent, model, whatItDoes, task, name }) {

@@ -1,4 +1,4 @@
-// Free Lite Check: a quick look at an agent that costs a few cents, to give builders a reason to try Polly before
+// Free Polly Peek: a quick look at an agent that costs a few cents, to give builders a reason to try Polly before
 // paying for a full test. Scoping doc: https://claude.ai/artifact/URF1ntgeCiDFo3yKhDza1b
 //
 // The grader runs the check (agent-report-card src/lib/lite.ts) behind a private endpoint:
@@ -44,7 +44,7 @@ export function agentKey(link) {
 export function checkForm(f) {
   const link = f.agent.replace(/^mcp:\s*/i, '').split(/\s+/)[0] ?? '';
   if (!link) return { field: 'agent', error: 'Tell Polly where to find the agent.' };
-  if (/^\d{1,7}$/.test(link) || /openserv/i.test(link)) return { field: 'agent', error: "OpenServ marketplace agents aren't in the Lite Check yet. Use the agent's own https address, or request a full Polly Test." };
+  if (/^\d{1,7}$/.test(link) || /openserv/i.test(link)) return { field: 'agent', error: "OpenServ marketplace agents aren't in the Polly Peek yet. Use the agent's own https address, or request a full Polly Test." };
   let u;
   try {
     u = new URL(link);
@@ -61,21 +61,21 @@ const dayStart = (d) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d
 // Whether a check may start now. Returns {ok: true} or {ok: false, error, existing?, retest?}.
 // Rob's own runs (admin) skip the per-member, per-agent and Polly Tested rules but not the budget.
 export async function mayStart(db, { memberId, link, now, budgetUsd = LIMITS.monthlyUsd, admin = false }) {
-  if ((await db.settings.get('lite_paused')) === '1') return { ok: false, error: 'Lite Checks are paused just now. Try again later, or request a full Polly Test.' };
+  if ((await db.settings.get('lite_paused')) === '1') return { ok: false, error: 'Polly Peeks are paused just now. Try again later, or request a full Polly Test.' };
   const month = monthStart(now);
   if ((await db.liteChecks.spendSince(month.toISOString())) >= budgetUsd) {
-    return { ok: false, error: "This month's free Lite Checks have all been used. They open again on the 1st, or you can request a full Polly Test now." };
+    return { ok: false, error: "This month's free Polly Peeks have all been used. They open again on the 1st, or you can request a full Polly Test now." };
   }
-  if ((await db.liteChecks.countSince(dayStart(now).toISOString())) >= LIMITS.perDay) return { ok: false, error: "Today's free Lite Checks have all been used. Try again tomorrow." };
+  if ((await db.liteChecks.countSince(dayStart(now).toISOString())) >= LIMITS.perDay) return { ok: false, error: "Today's free Polly Peeks have all been used. Try again tomorrow." };
   if (admin) return { ok: true };
   const tested = testedFor(link);
   if (tested?.gradedAt && now - new Date(tested.gradedAt) < LIMITS.testedDays * 864e5) {
-    return { ok: false, retest: tested, error: `Polly gave ${tested.name} a full test recently (grade ${tested.grade}), so a Lite Check wouldn't tell you more. A retest shows what's changed.` };
+    return { ok: false, retest: tested, error: `Polly gave ${tested.name} a full test recently (grade ${tested.grade}), so a Polly Peek wouldn't tell you more. A retest shows what's changed.` };
   }
   const existing = await db.liteChecks.recentFor(agentKey(link), new Date(now - LIMITS.perAgentDays * 864e5).toISOString());
-  if (existing) return { ok: false, existing, error: `This agent had a Lite Check in the last ${LIMITS.perAgentDays} days. Each agent gets one a month.` };
+  if (existing) return { ok: false, existing, error: `This agent had a Polly Peek in the last ${LIMITS.perAgentDays} days. Each agent gets one a month.` };
   if ((await db.liteChecks.countForMember(memberId, month.toISOString())) >= LIMITS.perMemberMonth) {
-    return { ok: false, error: `You've used your ${LIMITS.perMemberMonth} free Lite Checks this month. They come back on the 1st.` };
+    return { ok: false, error: `You've used your ${LIMITS.perMemberMonth} free Polly Peeks this month. They come back on the 1st.` };
   }
   return { ok: true };
 }
@@ -147,6 +147,9 @@ export function liteCheckRoutes({ db, config, adminOnly, fetchFn = fetch, now = 
     if ((req.get('accept') ?? '').includes('application/json')) return res.json({ status: row.status });
     res.redirect(303, page);
   };
+
+  // /peek is the friendly name for the same page.
+  app.get('/peek', (req, res) => res.redirect(301, `/lite${req.url.slice('/peek'.length)}`));
 
   app.get('/lite', async (req, res) => {
     res.set('Cache-Control', 'no-store');

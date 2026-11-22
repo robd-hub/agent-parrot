@@ -96,6 +96,8 @@ test('the home page leads with every agent in a ranked table, filterable by cate
   assert.equal(home.status, 200);
   for (const a of allAgents()) assert.ok(home.text.includes(`href="/agents/${a.id}"`), a.id);
   assert.match(home.text, /class="agent-table"/);
+  assert.match(home.text, /Real agents doing real work\. Two independent judges\. Grades anyone can check\./);
+  assert.match(home.text, /a third judge settles it/);
   const one = peckingOrder().find((a) => a.category === 'writing');
   const writing = await req('/?category=writing');
   assert.ok(writing.text.includes(`href="/agents/${one.id}"`));

@@ -34,7 +34,7 @@ async function start(overrides = {}) {
   const base = `http://127.0.0.1:${server.address().port}`;
   const jar = new Map();
   const req = async (path, { method = 'GET', form, headers = {}, json } = {}) => {
-    const h = { ...headers, cookie: [...jar].map(([k, v]) => `${k}=${v}`).join('; ') };
+    const h = { ...headers, cookie: headers.cookie ?? [...jar].map(([k, v]) => `${k}=${v}`).join("; ") };
     let body;
     if (form) (h['content-type'] = 'application/x-www-form-urlencoded'), (body = new URLSearchParams(form).toString());
     if (json) (h['content-type'] = 'application/json'), (body = JSON.stringify(json));
@@ -322,4 +322,29 @@ test('signed-out visitors get cached pages; signed-in members never do', async (
   const go = await s.req('/auth/github');
   await s.req(`/auth/github/callback?code=abc&state=${new URL(go.location).searchParams.get('state')}`);
   for (const p of ['/', '/agents', '/pecking-order']) assert.equal((await s.req(p)).headers.get('cache-control'), 'private, no-store', p);
+});
+
+test('members get a browser-readable marker and are never served a cacheable page; signed-out copies reload fresh for them', async (t) => {
+  const s = await start();
+  t.after(s.close);
+  const out = await s.req('/listed');
+  assert.match(out.text, /<html lang="en" data-signed-in="0">/);
+  assert.match(out.text, /_fresh/); // the reload-for-members script is on every page
+  const go = await s.req('/auth/github');
+  const back = await s.req(`/auth/github/callback?code=abc&state=${new URL(go.location).searchParams.get('state')}`);
+  assert.ok(back.headers.getSetCookie().some((c) => /^ap_m=1;/.test(c) && !/HttpOnly/i.test(c)), 'marker set on sign-in');
+  for (const p of ['/', '/listed', '/compare', '/digest', '/agents/coder', '/api/grades.json']) {
+    const r = await s.req(p);
+    assert.equal(r.headers.get('cache-control'), 'private, no-store', p);
+  }
+  assert.match((await s.req('/agents/coder')).text, /data-signed-in="1"/);
+  const bye = await s.req('/logout', { method: 'POST' });
+  assert.ok(bye.headers.getSetCookie().some((c) => /^ap_m=;/.test(c)), 'marker cleared on sign-out');
+});
+
+test('a stale member marker without a session is cleared', async (t) => {
+  const s = await start();
+  t.after(s.close);
+  const r = await s.req('/agents', { headers: { cookie: 'ap_m=1' } });
+  assert.ok(r.headers.getSetCookie().some((c) => /^ap_m=;/.test(c)));
 });

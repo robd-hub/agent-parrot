@@ -46,6 +46,9 @@ const NAV = [
 
 // Runs before the page paints so dark mode never flashes white. The site is light unless someone picked dark on this device.
 const THEME_BOOT = "(function(){var t;try{t=localStorage.getItem('theme')}catch(e){}document.documentElement.dataset.theme=t==='dark'?'dark':'light';})();";
+// Signed-out pages are cached by the CDN. If a signed-in member is handed one (the browser still has the member marker),
+// load a fresh copy once, with a throwaway ?_fresh= so the CDN can't answer from cache. On the fresh page, tidy the address.
+const FRESH_FOR_MEMBERS = "(function(){try{var d=document.documentElement,u=new URL(location.href);if(d.dataset.signedIn==='1'){if(u.searchParams.has('_fresh')){u.searchParams.delete('_fresh');history.replaceState(null,'',u.pathname+u.search+u.hash);}return;}if(u.searchParams.has('_fresh')||!/(?:^|;\\s*)ap_m=1(?:;|$)/.test(document.cookie))return;u.searchParams.set('_fresh',Date.now().toString(36));location.replace(u.href);}catch(e){}})();";
 const THEME_TOGGLE = `<button type="button" class="theme-toggle" data-theme-toggle aria-label="Switch between light and dark mode" title="Light or dark mode">
           <svg class="icon-moon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M21 14.5A9 9 0 0 1 9.5 3a9 9 0 1 0 11.5 11.5z"/></svg>
           <svg class="icon-sun" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="4.5" fill="currentColor"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></g></svg>
@@ -56,7 +59,7 @@ export function layout(title, body, { wide = false, description = DEFAULT_DESCRI
   const path = ctx?.path ?? '';
   const nav = NAV.map(([href, label]) => `<a href="${href}"${path === href || path.startsWith(`${href}/`) ? ' aria-current="page"' : ''}>${label}</a>`).join('');
   return `<!doctype html>
-<html lang="en">
+<html lang="en" data-signed-in="${ctx?.signedIn ? '1' : '0'}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -68,7 +71,7 @@ export function layout(title, body, { wide = false, description = DEFAULT_DESCRI
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
   <meta name="theme-color" content="#ffffff">
-  <script>${THEME_BOOT}</script>
+  <script>${FRESH_FOR_MEMBERS}${THEME_BOOT}</script>
   <link rel="stylesheet" href="/style.css">
   <script src="/theme.js" defer></script>
 </head>

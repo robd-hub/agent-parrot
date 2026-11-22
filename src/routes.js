@@ -2,7 +2,7 @@ import { compareRoutes } from './compare.js';
 import express from 'express';
 import { randomBytes, timingSafeEqual, createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { readSession, writeSession, renewSession, clearSession, parseCookies } from './session.js';
+import { readSession, writeSession, renewSession, clearSession, parseCookies, MEMBER_MARK, setMemberMark } from './session.js';
 import * as linkedin from './linkedin.js';
 import * as oauth from './oauth.js';
 import * as views from './views.js';
@@ -64,6 +64,19 @@ export function createRoutes({
   app.use((req, res, next) => {
     req.session = readSession(req, config.sessionSecret);
     renewSession(req, res, config.sessionSecret, secure);
+    // Keep the browser-readable member marker in step with the real session.
+    const marked = parseCookies(req.headers.cookie)[MEMBER_MARK] === '1';
+    if (req.session.uid && !marked) setMemberMark(res, secure);
+    if (!req.session.uid && marked) res.clearCookie(MEMBER_MARK, { path: '/' });
+    // A member's page has their own header and forms, so it is never kept by the CDN, whatever the route asks for.
+    if (req.session.uid) {
+      const set = res.set.bind(res);
+      res.set = (field, value) => {
+        if (typeof field === 'string') return set(field, field.toLowerCase() === 'cache-control' ? 'private, no-store' : value);
+        const fields = Object.fromEntries(Object.entries(field).map(([k, v]) => [k, k.toLowerCase() === 'cache-control' ? 'private, no-store' : v]));
+        return set(fields);
+      };
+    }
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('Referrer-Policy', 'same-origin');
     views.pageContext.run({ signedIn: Boolean(req.session.uid), baseUrl: config.baseUrl, graderUrl: config.graderUrl, path: req.path }, next);

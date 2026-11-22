@@ -85,23 +85,26 @@ function proveBlock({ agent, member, joined, byGithub, token }) {
   if (!joined) return `<section class="card section"><h2>Is this yours?</h2><p>Finish joining first, then come back to claim it.</p><p><a class="btn" href="/join">Finish joining</a></p></section>`;
   const ref = `<input type="hidden" name="ref" value="${esc(agent.ref)}">`;
   const github = logins.length
-    ? `<h3>With GitHub</h3>
+    ? `<div class="claim-way"><h3>With GitHub <span class="muted small">quickest</span></h3>
        ${byGithub
         ? `<p>You signed in as <b>${esc(member.github_login)}</b>, the account the registry checked for this listing.</p>
            <form method="post" action="/claim">${ref}<input type="hidden" name="method" value="github"><button type="submit">Claim it now</button></form>`
-        : `<p>This listing belongs to the GitHub account <b>${esc(logins.join(', '))}</b>. ${member.github_login ? `You signed in as ${esc(member.github_login)}.` : "You didn't sign in with GitHub."} <a href="/auth/github">Sign in with GitHub</a> as that account to claim it in one click.</p>`}`
+        : `<p>This listing belongs to the GitHub account <b>${esc(logins.join(', '))}</b>. ${member.github_login ? `You signed in as ${esc(member.github_login)}.` : "You didn't sign in with GitHub."} <a href="/auth/github">Sign in with GitHub</a> as that account to claim it in one click.</p>`}</div>`
     : '';
   const places = [
     ...hosts.map((h) => `<li><code>https://${esc(h)}/.well-known/agent-parrot.txt</code></li>`),
     ...repos.map((r) => `<li><code>agent-parrot.txt</code> at the top of <a href="${esc(r)}" target="_blank" rel="noopener nofollow">${esc(r.replace('https://github.com/', ''))}</a></li>`),
   ];
   const file = places.length
-    ? `<h3>${logins.length ? 'Or with' : 'With'} a code</h3>
-       <p>Put this line in a public file in one of these places. It's only for you and this agent.</p>
-       <p class="invite-link"><input readonly value="${esc(token)}" aria-label="Your claim code" onclick="this.select()"></p>
-       <ul class="plain-list">${places.join('')}</ul>
-       <form method="post" action="/claim">${ref}<input type="hidden" name="method" value="code"><button type="submit">I've added it, check now</button></form>
-       <p class="muted small">You can take the file down once your claim is through.</p>`
+    ? `${logins.length ? '<p class="or-divider"><span>or</span></p>' : ''}<div class="claim-way"><h3>With a code</h3>
+       <ol class="claim-steps">
+         <li><span>Copy your code. It's only for you and this agent.</span>
+           <p class="invite-link"><input readonly value="${esc(token)}" aria-label="Your claim code" onclick="this.select()"></p></li>
+         <li><span>Put it in a public file in one of these places:</span><ul class="plain-list">${places.join('')}</ul></li>
+         <li><span>Ask us to check.</span>
+           <form method="post" action="/claim">${ref}<input type="hidden" name="method" value="code"><button type="submit">I've added it, check now</button></form>
+           <p class="muted small">You can take the file down once your claim is through.</p></li>
+       </ol></div>`
     : '';
   return `<section class="card section"><h2>Prove it's yours</h2>
     <p>We only accept proof from the places this agent's own listing names, so nobody has to take anyone's word for it.</p>

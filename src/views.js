@@ -91,11 +91,14 @@ export function layout(title, body, { wide = false, description = DEFAULT_DESCRI
   <main class="wrap${wide ? ' wide' : ''}">${body}</main>
   <footer class="footer">
     <div class="footer-inner">
-      <div><img src="/parrot.svg" width="36" height="36" alt=""> <strong>${SLOGAN}.</strong></div>
-      <p>Grades come from <a href="${esc(graderUrl())}">Agent Report Card</a>, two independent judges per answer.
-        The Daily Hallucination is satire: the stories are made up on purpose and link to the real news they poke fun at.</p>
-      <p><a href="/agents">Tested agents</a> · <a href="/listed">All agents</a> · <a href="/compare">Compare</a> · <a href="/request">Request a Polly Test</a> · <a href="/peek">Polly Peek (free)</a> · <a href="/get-polly-tested">Get Polly Tested</a></p>
-      <p><a href="/squawk">The Squawk</a> · <a href="/digest">Top movers</a> · <a href="/articles">Articles</a> · <a href="/feed">Grades feed</a> · <a href="/privacy">Privacy</a></p>
+      <div class="footer-brand"><img src="/parrot.svg" width="36" height="36" alt=""> <strong>${SLOGAN}.</strong></div>
+      <p class="footer-note">Every grade is scored by two independent judges. The Daily Hallucination is satire, made up on purpose.</p>
+      <nav class="footer-cols" aria-label="Footer">
+        <div><h2>Agents</h2><a href="/agents">Tested agents</a><a href="/listed">All agents</a><a href="/pecking-order">Pecking Order</a><a href="/compare">Compare</a></div>
+        <div><h2>Get tested</h2><a href="/get-polly-tested">Get Polly Tested</a><a href="/request">Request a Polly Test</a><a href="/peek">Polly Peek (free)</a></div>
+        <div><h2>Read</h2><a href="/squawk">The Squawk</a><a href="/digest">Top movers</a><a href="/articles">Articles</a><a href="/news">The Daily Hallucination</a></div>
+        <div><h2>About</h2><a href="${esc(graderUrl())}">Agent Report Card</a><a href="/feed">Grades feed</a><a href="/privacy">Privacy</a></div>
+      </nav>
     </div>
   </footer>
 </body>
@@ -189,7 +192,7 @@ export function agentTable(rows) {
       <td class="hide-md muted small">${esc(categoryName(a.category))}</td>
       <td class="hide-md muted small num-plain">${esc(shortDate(a.gradedAt))}</td></tr>`).join('');
   return `<div class="table-card table-scroll"><table class="agent-table">
-      <thead><tr><th>#</th><th>Agent</th><th>Grade</th><th class="num">Squawk Score</th><th class="hide-sm">Task scores</th><th class="hide-sm">Honesty</th><th class="hide-md">Category</th><th class="hide-md">Tested</th></tr></thead>
+      <thead><tr><th>#</th><th>Agent</th><th>Grade</th><th class="num"><span class="hide-sm">Squawk </span>Score</th><th class="hide-sm">Task scores</th><th class="hide-sm">Honesty</th><th class="hide-md">Category</th><th class="hide-md">Tested</th></tr></thead>
       <tbody>${body || '<tr><td colspan="8" class="muted">No agents in this category yet.</td></tr>'}</tbody>
     </table></div>`;
 }
@@ -202,7 +205,7 @@ export function homePage({ member, memberCount, stats, listedCount = 0, rows, ca
       : `<p class="notice">You're signed in but haven't finished joining. <a href="/join">Finish joining</a></p>`)
     : `${signInButtons(providers)}${emailLogin ? emailLoginForm() : ''}`;
   const miniRow = (a, right) => `<li><a href="/agents/${esc(a.id)}">${gradeBadge(a.grade, { size: 'sm' })}<span class="pname">${esc(a.name)}</span><span class="pscore">${right}</span></a></li>`;
-  const top3 = rows.length && !category ? stats.top3 : rows.slice(0, 3);
+  const top = rows.length && !category ? stats.top : rows.slice(0, 5);
   return layout(`${BRAND}: the AI agent directory where agents get tested`, `
     <section class="market-head">
       <h1>AI agents, <em>Polly Tested</em></h1>
@@ -216,11 +219,11 @@ export function homePage({ member, memberCount, stats, listedCount = 0, rows, ca
     <section class="highlights" aria-label="Highlights">
       <div class="hl-card">
         <div class="card-head"><h2>Top of the Pecking Order</h2><a href="/pecking-order">More</a></div>
-        <ol class="pecking-mini">${top3.map((a) => miniRow(a, Number(a.score))).join('')}</ol>
+        <ol class="pecking-mini">${top.map((a) => miniRow(a, Number(a.score))).join('')}</ol>
       </div>
       <div class="hl-card">
         <div class="card-head"><h2>Made something up</h2><a href="/articles/ask-it-something-it-cant-know">Why</a></div>
-        <ol class="pecking-mini">${honestyFails.slice(0, 3).map((a) => miniRow(a, '<span class="tag tag-fail">Made it up</span>')).join('') || '<li class="muted small">Nobody yet.</li>'}</ol>
+        <ol class="pecking-mini">${honestyFails.slice(0, 5).map((a) => miniRow(a, '<span class="tag tag-fail">Made it up</span>')).join('') || '<li class="muted small">Nobody yet.</li>'}</ol>
       </div>
       <div class="hl-card hl-stack">
         <a class="daily-teaser" href="/game"><span class="eyebrow">Spot the Hallucination #${Number(gameNo)}</span>
@@ -389,6 +392,14 @@ export function agentPage({ agent, place, total, listed = '', details = '', rati
     </section>`, { description: `${agent.name} got ${agent.grade} (Squawk Score ${agent.score}) in the Polly Test. See every task, every answer and both judges' scores.`, ogType: 'article' });
 }
 
+// The call to action under a ranking table: get tested, or try the free Polly Peek first.
+export function notOnTheList() {
+  return `<section class="card cta-card list-cta"><img src="/parrot.svg" width="48" height="48" alt="">
+      <div><h2>Not on the list?</h2><p class="muted">Get your agent Polly Tested and earn its place in the Pecking Order.</p></div>
+      <div class="cta-actions"><a class="btn" href="/get-polly-tested">Get tested</a><a class="btn ghost" href="/peek">Try Polly Peek (free)</a></div>
+    </section>`;
+}
+
 export function peckingOrderPage({ rows, category }) {
   const body = rows.map((a) => `<tr>
       <td class="place">${Number(a.place)}</td>
@@ -404,10 +415,10 @@ export function peckingOrderPage({ rows, category }) {
     </section>
     ${categoryTabs('/pecking-order', category)}
     <div class="card table-scroll"><table class="pecking">
-      <thead><tr><th>#</th><th>Agent</th><th>Grade</th><th class="num">Squawk Score</th><th>Honesty</th></tr></thead>
+      <thead><tr><th>#</th><th>Agent</th><th>Grade</th><th class="num"><span class="hide-sm">Squawk </span>Score</th><th>Honesty</th></tr></thead>
       <tbody>${body || '<tr><td colspan="5" class="muted">No agents in this category yet.</td></tr>'}</tbody>
     </table></div>
-    <p class="muted small">Not on the list? <a href="/get-polly-tested">Get your agent Polly Tested</a>.</p>`, { description: 'The Pecking Order: every Polly Tested AI agent, ranked by Squawk Score.' });
+    ${notOnTheList()}`, { description: 'The Pecking Order: every Polly Tested AI agent, ranked by Squawk Score.' });
 }
 
 export function getTestedPage({ agent = '' }) {

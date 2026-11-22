@@ -143,6 +143,10 @@ function table(a, b) {
 
 function picker({ a, query, results }) {
   const which = a ? 'second' : 'first';
+  const list = results.filter((r) => r.ref !== a?.ref);
+  const card = (r) => `<a class="agent-card" href="${esc(a ? compareUrl(a.ref, r.ref) : compareUrl(r.ref))}">
+      ${r.grade ? gradeBadge(r.grade) : '<span class="grade grade-none" title="Not Polly Tested yet">?</span>'}
+      <span class="agent-main"><strong>${esc(r.name)}</strong><span class="muted small">${esc(r.note)}</span></span></a>`;
   return `<section class="card section">
     <h2>Pick the ${which} agent</h2>
     <form method="get" action="/compare" class="listed-search" role="search">
@@ -151,10 +155,10 @@ function picker({ a, query, results }) {
       <input id="cmp-q" name="q" value="${esc(query)}" maxlength="80" placeholder="Search tested and listed agents">
       <button type="submit">Search</button>
     </form>
-    ${query ? '' : '<p class="muted small">Or pick a Polly Tested agent:</p>'}
-    <div class="agent-list">${results.filter((r) => r.ref !== a?.ref).map((r) => `<a class="agent-card" href="${esc(a ? compareUrl(a.ref, r.ref) : compareUrl(r.ref))}">
-      ${r.grade ? gradeBadge(r.grade) : '<span class="grade grade-none" title="Not Polly Tested yet">?</span>'}
-      <span class="agent-main"><strong>${esc(r.name)}</strong><span class="muted small">${esc(r.note)}</span></span></a>`).join('') || `<p class="muted">No agents match "${esc(query)}".</p>`}</div>
+    ${query ? '' : '<p class="muted small">Or pick any Polly Tested agent, by grade:</p>'}
+    ${query ? `<div class="agent-list">${list.map(card).join('') || `<p class="muted">No agents match "${esc(query)}".</p>`}</div>`
+    : ['A', 'B', 'C', 'D', 'F'].map((g) => [g, list.filter((r) => r.grade === g)]).filter(([, rs]) => rs.length)
+      .map(([g, rs]) => `<h3 class="pick-grade">Grade ${g} <span class="muted small">${rs.length}</span></h3><div class="agent-list pick-list">${rs.map(card).join('')}</div>`).join('')}
   </section>`;
 }
 

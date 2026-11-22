@@ -140,7 +140,7 @@ export function createRoutes({
     if (inviter) res.set('Cache-Control', 'private, no-store');
     else cacheIfSignedOut(req, res);
     res.send(views.homePage({
-      member, memberCount, stats: { ...stats(), top3: peckingOrder().slice(0, 3) },
+      member, memberCount, stats: { ...stats(), top: peckingOrder().slice(0, 5) },
       listedCount: counts.reduce((n, c) => n + Number(c.untested || 0), 0),
       rows: peckingOrder(pickCategory(req.query.category)), category: pickCategory(req.query.category),
       honestyFails: allAgents().filter((a) => a.honesty === 'failed'), makers: agentById('cheap-first'), stories,

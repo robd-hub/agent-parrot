@@ -1,5 +1,5 @@
 {
- "_about": "Hand-kept facts about tested agents that the grade data doesn't carry: who made it, links, pricing, when it first appeared. Only add what Rob confirmed or a public page shows; leave a field out rather than guess, and the page says it isn't known. Grades never go here. 'maker.key' joins the agent to its maker's page and reputation (github:<login>, web:<domain> or wallet:<address>). 'platforms' are defaults by how Agent Report Card reached the agent.",
+ "_about": "Hand-kept facts about tested agents that the grade data doesn't carry: who made it, links, pricing, when it first appeared. Only add what Rob confirmed or a public page shows; leave a field out rather than guess, and the page says it isn't known. Grades never go here. 'maker.key' joins the agent to its maker's page and reputation (github:<login>, web:<domain> or wallet:<address>). 'licence' (with 'openSource' true/false), 'privacy' and 'privacyUrl' show on agent and compare pages; leave them out unless confirmed. 'platforms' are defaults by how Agent Report Card reached the agent.",
  "platforms": {
   "openserv-marketplace": {
    "platform": "OpenServ marketplace",

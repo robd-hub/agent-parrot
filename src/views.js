@@ -288,6 +288,7 @@ export function directoryPage({ agents, listings, category, notice, error, signe
           <span class="agent-desc">${esc(l.description)}</span></span>
         <span class="agent-tags"><a class="btn small" href="/get-polly-tested?agent=${encodeURIComponent(l.url)}">Get it tested</a></span></div>`).join('')}</div>
     </section>` : ''}
+    <p class="listed-link"><a href="/compare">Compare any two agents side by side</a>: grade, price, uptime, security, maker and more.</p>
     <p class="listed-link"><a href="/listed">See thousands more agents from the Official MCP Registry and ERC-8004</a>: not Polly Tested yet, so no grades.</p>
     <section class="card section" id="suggest">
       <h2>Know an agent we should list?</h2>
@@ -358,6 +359,7 @@ export function agentPage({ agent, place, total, listed = '', details = '' }) {
         <div class="hero-actions">
           ${agent.url ? `<a class="btn" href="${esc(agent.url)}" target="_blank" rel="noopener">Visit the agent</a>` : ''}
           <a class="btn ghost" href="${esc(report)}" target="_blank" rel="noopener">Full report card</a>
+          <a class="btn ghost" href="/compare?a=${encodeURIComponent(agent.id)}">Compare</a>
           <a class="btn ghost" href="${esc(xShareUrl(`/agents/${agent.id}`, `${agent.name} got ${agent.grade} in the Polly Test 🦜`))}" target="_blank" rel="noopener">Share on X</a>
         </div>
       </div>

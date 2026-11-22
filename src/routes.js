@@ -1,3 +1,4 @@
+import { compareRoutes } from './compare.js';
 import express from 'express';
 import { randomBytes, timingSafeEqual, createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
@@ -341,6 +342,7 @@ export function createRoutes({
   app.use(squawkRoutes({ db, config, adminOnly, sendEmail, now }));
   app.use(directoryRoutes({ db, config, adminOnly, fetchFn, lookup }));
   app.use(feedRoutes({ config }));
+  app.use(compareRoutes({ db }));
 
   app.get('/admin', adminOnly, async (req, res) => {
     res.set('Cache-Control', 'private, no-store');

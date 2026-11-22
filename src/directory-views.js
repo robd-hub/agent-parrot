@@ -3,6 +3,7 @@ import { esc, layout, dateLabel, gradeBadge } from './views.js';
 import { SOURCES, EXPLORERS } from './directories.js';
 import { MAKER_KINDS, makerPath } from './makers.js';
 import { securityFlags, cardFlags, toolPowers, POWERS } from './security.js';
+import { licenceInfo, privacyInfo } from './openness.js';
 
 // A listed agent's own page: /listed/<source>/<id>. MCP ids have slashes, kept as path segments.
 export const listedPath = (r) => `/listed/${encodeURIComponent(r.source)}/${String(r.source_id).split('/').map(encodeURIComponent).join('/')}`;
@@ -43,12 +44,12 @@ export function priceText(r) {
   if (p?.display) return `${esc(p.display)} <span class="muted small">(the agent's own asking price at its last check; we never pay)</span>`;
   return '';
 }
-const priceMissing = (r) => (r.x402 && !r.checked_at ? 'Takes x402 payments; the price is read at its first health check' : r.x402 ? 'Takes x402 payments, but did not name a price when asked without paying (it may only ask once a tool is used)'
+export const priceMissing = (r) => (r.x402 && !r.checked_at ? 'Takes x402 payments; the price is read at its first health check' : r.x402 ? 'Takes x402 payments, but did not name a price when asked without paying (it may only ask once a tool is used)'
   : r.source === 'mcp' ? 'Not stated' : 'No x402');
 export const shortPrice = (r) => (Number.isFinite(r?.health?.price?.usd) ? `$${r.health.price.usd < 0.01 ? Number(r.health.price.usd.toFixed(6)) : r.health.price.usd.toFixed(2)}/call` : '');
 
 // Code and on-chain activity rows.
-const ago = (iso) => {
+export const ago = (iso) => {
   const d = Math.floor((Date.now() - new Date(iso)) / 86400000);
   return d < 1 ? 'today' : d === 1 ? 'yesterday' : d < 60 ? `${d} days ago` : d < 730 ? `${Math.round(d / 30)} months ago` : `${Math.round(d / 365)} years ago`;
 };
@@ -70,6 +71,18 @@ export function activityRows(r) {
   }
   return out;
 }
+
+// Licence and data-privacy rows (src/openness.js).
+export const licenceHtml = (l) => (l.known ? `${l.open === true ? '<b class="ok">' : '<b>'}${esc(l.text)}</b>` : `<span class="muted">${esc(l.text)}</span>`)
+  + (l.note ? ` <span class="muted small">(${esc(l.note)})</span>` : '');
+export const privacyHtml = (p) => `${p.policy ? (p.policy.url ? ext(p.policy.url, p.policy.text) : esc(p.policy.text))
+  : '<span class="muted">Privacy policy not known: the maker hasn\'t given us one</span>'}${p.lines.map((x) => `<br><span class="small">${esc(x)}</span>`).join('')}`;
+const opennessRows = (l, p) => [row('Licence', licenceHtml(l)), row('Data privacy', privacyHtml(p))];
+
+// The directory listing we health check for a tested agent: one with an address, MCP first.
+export const mainRow = (rows = []) => rows.filter((r) => r.endpoint).sort((a, b) => (a.source === 'mcp' ? -1 : 1) - (b.source === 'mcp' ? -1 : 1))[0] ?? null;
+export const compareHref = (ref) => `/compare?a=${encodeURIComponent(ref)}`;
+export const listedRef = (r) => `${r.source}:${r.source_id}`;
 
 export function toolsBlock(r) {
   const tools = toolsOf(r);
@@ -102,7 +115,10 @@ export function reputationBlock(rep, { compact = false, path } = {}) {
 
 // Key details for a tested agent (from src/makers.js testedDetails).
 export function testedDetailsBlock(d, { gradedAt, rep, rows = [] } = {}) {
-  const checked = rows.filter((r) => r.endpoint).sort((a, b) => (a.source === 'mcp' ? -1 : 1) - (b.source === 'mcp' ? -1 : 1))[0];
+  const checked = mainRow(rows);
+  const openserv = Boolean(d.connection?.startsWith('OpenServ'));
+  const licence = licenceInfo({ row: checked ?? rows.find((r) => r.details?.repo), facts: d.facts, openserv });
+  const privacy = privacyInfo({ row: checked, facts: d.facts, openserv, x402: d.x402 });
   return `<section class="card section"><h2>Key details</h2>
     ${detailsList([
       row('Made by', d.maker ? makerLink(d.maker.name, d.makerKey, d.maker.url) : '', d.makerNote || 'Not known yet'),
@@ -116,6 +132,7 @@ export function testedDetailsBlock(d, { gradedAt, rep, rows = [] } = {}) {
       row('Chains', tags(d.chains), 'None'),
       row('Pricing', [esc(d.pricing ?? ''), checked ? priceText(checked) : ''].filter(Boolean).join('<br>') || (d.x402 ? 'Pay per call over x402' : ''), 'Not published'),
       ...(checked ? [...healthRows(checked), ...activityRows(checked)] : [row('Health check', '', d.connection?.startsWith('OpenServ') ? 'Reached through OpenServ, so not checked directly' : 'Not listed with a public address yet')]),
+      ...opennessRows(licence, privacy),
     ])}
     ${d.note ? `<p class="muted small">${esc(d.note)}</p>` : ''}
     ${rep ? reputationBlock(rep, { compact: true, path: makerPath(d.makerKey) }) : ''}
@@ -140,6 +157,7 @@ function listedCard(r, makerCounts = {}) {
         <span class="muted small">${r.maker_name ? `by ${makerPath(r.maker_key) ? `<a href="${esc(makerPath(r.maker_key))}">${esc(r.maker_name)}</a>` : esc(r.maker_name)}${others > 0 ? ` (+${others.toLocaleString('en-GB')} more)` : ''}` : r.source === 'mcp' ? esc(r.source_id) : `Agent #${esc(r.source_id.split(':')[1])}`} · not Polly Tested yet</span>
         ${r.description ? `<span class="agent-desc">${esc(r.description)}</span>` : ''}</span>
       <span class="agent-tags">${healthTag(r)}${toolsOf(r)?.length ? `<span class="tag">${toolsOf(r).length}${r.health?.toolsMore ? '+' : ''} ${r.source === 'erc8004' && !r.details?.mcp ? 'skills' : 'tools'}</span>` : ''}${shortPrice(r) ? `<span class="tag">${esc(shortPrice(r))}</span>` : ''}${cardFlags(r).map((f) => `<span class="tag ${f.level === 'bad' ? 'tag-fail' : 'tag-mid'}">${esc(f.text)}</span>`).join('')}${sourceTag(r)}${r.x402 ? '<span class="tag">x402</span>' : ''}
+        <a class="btn small ghost" href="${esc(compareHref(listedRef(r)))}">Compare</a>
         <a class="btn small" href="/get-polly-tested?agent=${encodeURIComponent(testWith)}">Get it tested</a></span>
     </div>`;
 }
@@ -173,7 +191,7 @@ export function listedPage({ rows, total, query, source, live = false, page, cou
       ${live ? '<input type="hidden" name="live" value="1">' : ''}
       <button type="submit">Search</button>
     </form>
-    <p class="small"><a href="${esc(link(1, source, !live))}">${live ? 'Show all agents' : 'Only show agents that answered their last health check'}</a></p>
+    <p class="small"><a href="/compare">Compare two agents side by side</a> · <a href="${esc(link(1, source, !live))}">${live ? 'Show all agents' : 'Only show agents that answered their last health check'}</a></p>
     <p class="muted small">${total ? `${total.toLocaleString('en-GB')} ${total === 1 ? 'agent' : 'agents'}${query ? ` matching "${esc(query)}"` : ''}${live ? ' that answered their last health check' : ''}. Newest first.` : ''}</p>
     <div class="agent-list">${rows.map((r) => listedCard(r, makerCounts)).join('') || `<p class="muted">${all ? 'No agents match that search.' : 'Nothing synced yet. Check back tomorrow.'}</p>`}</div>
     ${pages > 1 ? `<nav class="pager" aria-label="Pages">
@@ -256,6 +274,7 @@ export function listedAgentPage({ r, rep, more = [] }) {
         <div class="hero-actions">
           ${r.url || r.endpoint ? `<a class="btn" href="${esc(r.url || r.endpoint)}" target="_blank" rel="noopener nofollow">Visit the agent</a>` : ''}
           <a class="btn ghost" href="/get-polly-tested?agent=${encodeURIComponent(testWith)}">Get it tested</a>
+          <a class="btn ghost" href="${esc(compareHref(listedRef(r)))}">Compare</a>
         </div>
       </div>
     </section>
@@ -277,6 +296,7 @@ export function listedAgentPage({ r, rep, more = [] }) {
         row('AI model', '', 'Not published: neither registry asks for it'),
         ...healthRows(r),
         ...activityRows(r),
+        ...opennessRows(licenceInfo({ row: r }), privacyInfo({ row: r })),
       ])}
     </section>
     ${securityBlock(r)}

@@ -5,7 +5,7 @@ Rules and commands are in `CLAUDE.md`. Update this file when something below cha
 
 ## Live now
 
-- Repo `robd-hub/agent-parrot`, default branch `main`. `npm test`: 53 tests, all passing.
+- Repo `robd-hub/agent-parrot`, default branch `main`. `npm test`: 58 tests, all passing.
 - Vercel project `agent-parrot` (team designimp-projects, Hobby plan), linked to the repo, deploys `main`
   automatically: https://agent-parrot.vercel.app. Behind Vercel's login until a custom domain is added,
   so the public can't see it yet.
@@ -44,9 +44,18 @@ Rules and commands are in `CLAUDE.md`. Update this file when something below cha
 ## Paused or parked
 
 - The Daily Hallucination run starts paused. Once `ANTHROPIC_API_KEY` is set, resume it at `/admin/news`.
-- Claim-your-listing growth plan (builders claim their `/listed` agent, get a badge, nudged to a paid test):
-  written up, not built. Parked until 21 Dec 2026. Never email addresses taken from GitHub or open automated
-  GitHub issues.
+- Claim your listing (plan: https://claude.ai/artifact/PyimNwAzzWtZs6FvjfwueJ). Rob said build it now (22 Nov 2026).
+  First part is in the PR from `claude/claim-your-listing`: a signed-in member claims a listed or tested agent at
+  `/claim?ref=<ref>`. Proof only from what the listing itself names: GitHub sign-in as the registry-checked
+  `io.github.<login>` (or the `maker.key` in `data/agent-facts.json`), or a code (`agent-parrot-verify=…`, made from
+  `SESSION_SECRET`, nothing stored) in `/.well-known/agent-parrot.txt` on the agent's endpoint, website or checked
+  domain, or in `agent-parrot.txt` in its GitHub repo. One owner per agent; `/admin/claims` to remove one.
+  Claimed pages get a "Claimed by its maker" tick, the free basic check (the existing health check, plus "Check now"
+  every 10 minutes), a badge `/badge.svg?ref=<ref>` (Claimed / Up / Down, or the grade for Polly Tested agents; links
+  back with `?from=badge`) and a Polly Test nudge. `/me` lists listings under the member's GitHub login to claim.
+  Not built yet: wallet signatures for ERC-8004, editing description/logo, "your agent is down" emails, claims
+  lapsing after 30 days, moving a claim when a listing gets matched to a tested agent. Badges only show to the
+  public once the custom domain is live. Never email addresses taken from GitHub or open automated GitHub issues.
 - The SealKeeper-style badge idea was dropped.
 - Publishing the grades feed to outsiders only works once a custom domain is live.
 

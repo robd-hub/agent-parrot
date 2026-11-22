@@ -2,6 +2,10 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 
 // Small signed-cookie session: the cookie holds JSON plus an HMAC so it can't be forged.
 const COOKIE = 'ap_session';
+// A plain marker the browser can read (the session cookie itself can't be read by scripts). It holds nothing but "1".
+// Public pages are cached for signed-out visitors; when a member gets one of those copies, the page sees this
+// marker and loads a fresh copy (see FRESH_FOR_MEMBERS in views.js).
+export const MEMBER_MARK = 'ap_m';
 // Members stay signed in for 90 days, and each visit pushes that back (at most once a day).
 const MAX_AGE_SECONDS = 60 * 60 * 24 * 90;
 const RENEW_AFTER_MS = 24 * 60 * 60 * 1000;
@@ -36,6 +40,11 @@ export function writeSession(res, data, secret, secure, maxAgeSeconds = MAX_AGE_
     maxAge: maxAgeSeconds * 1000,
     path: '/',
   });
+  if (data.uid) setMemberMark(res, secure, maxAgeSeconds);
+}
+
+export function setMemberMark(res, secure, maxAgeSeconds = MAX_AGE_SECONDS) {
+  res.cookie(MEMBER_MARK, '1', { sameSite: 'lax', secure, maxAge: maxAgeSeconds * 1000, path: '/' });
 }
 
 // Re-issue a signed-in member's cookie once it is a day old, so regular visitors never get logged out.
@@ -48,6 +57,7 @@ export function renewSession(req, res, secret, secure) {
 
 export function clearSession(res) {
   res.clearCookie(COOKIE, { path: '/' });
+  res.clearCookie(MEMBER_MARK, { path: '/' });
 }
 
 export function parseCookies(header = '') {

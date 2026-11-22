@@ -212,6 +212,30 @@ const SCHEMA = `
     created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
   );
   CREATE INDEX IF NOT EXISTS test_requests_member ON test_requests (member_id, created_at);
+  -- Free Lite Checks (src/lite-checks.js). The grader runs them (POST <GRADER_URL>/api/lite/); we keep the result here,
+  -- private to the member who ran it (member_id empty for Rob's own runs from /admin/lite). Never part of grades, the
+  -- Pecking Order, the digest or maker reputation. agent_key is the cleaned-up address, for the once-a-month rule.
+  CREATE TABLE IF NOT EXISTS lite_checks (
+    id          TEXT PRIMARY KEY,
+    member_id   TEXT REFERENCES members (id) ON DELETE SET NULL,
+    agent_ref   TEXT,
+    agent_key   TEXT NOT NULL,
+    agent       TEXT NOT NULL,
+    model       TEXT NOT NULL DEFAULT '',
+    what_it_does TEXT NOT NULL DEFAULT '',
+    task        TEXT NOT NULL DEFAULT '',
+    name        TEXT NOT NULL DEFAULT '',
+    status      TEXT NOT NULL DEFAULT 'queued',
+    band        TEXT,
+    result      JSONB,
+    error       TEXT,
+    est_usd     NUMERIC NOT NULL DEFAULT 0,
+    started_at  TIMESTAMPTZ,
+    finished_at TIMESTAMPTZ,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+  CREATE INDEX IF NOT EXISTS lite_checks_agent ON lite_checks (agent_key, created_at);
+  CREATE INDEX IF NOT EXISTS lite_checks_member ON lite_checks (member_id, created_at);
   -- Simple on/off switches the organiser flips from the admin pages, such as pausing The Daily Hallucination.
   CREATE TABLE IF NOT EXISTS settings (
     key   TEXT PRIMARY KEY,
@@ -662,6 +686,33 @@ export function openDb(client) {
       setIssue: (id, { state, comments, closedAt }) =>
         q('UPDATE test_requests SET issue_state = $2, issue_comments = $3, issue_closed_at = $4, issue_checked_at = now() WHERE id = $1', [id, state, comments, closedAt]),
       mine: (memberId) => q('SELECT * FROM test_requests WHERE member_id = $1 ORDER BY created_at DESC LIMIT 20', [memberId]),
+    },
+
+    // Free Lite Checks (see src/lite-checks.js).
+    liteChecks: {
+      get: (id) => one('SELECT * FROM lite_checks WHERE id = $1', [id]),
+      async create({ id, memberId, agentRef, agentKey, agent, model, whatItDoes, task, name }) {
+        await q(`INSERT INTO lite_checks (id, member_id, agent_ref, agent_key, agent, model, what_it_does, task, name)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`, [id, memberId, agentRef, agentKey, agent, model, whatItDoes, task, name]);
+        return one('SELECT * FROM lite_checks WHERE id = $1', [id]);
+      },
+      // Takes a queued check for running. Only one caller wins, so a double click can't pay twice.
+      start: (id) => one("UPDATE lite_checks SET status = 'running', started_at = now() WHERE id = $1 AND status = 'queued' RETURNING *", [id]),
+      finish: (id, { band, result, estUsd }) =>
+        q("UPDATE lite_checks SET status = 'done', band = $2, result = $3, est_usd = $4, finished_at = now() WHERE id = $1", [id, band, JSON.stringify(result), estUsd]),
+      fail: (id, error) => q("UPDATE lite_checks SET status = 'failed', error = $2, finished_at = now() WHERE id = $1", [id, error]),
+      // A run that never came back (the page was closed mid-run) is given up after a few minutes.
+      expire: (minutes = 5) => q(`UPDATE lite_checks SET status = 'failed', error = 'The check took too long and was stopped.', finished_at = now()
+                                  WHERE status = 'running' AND started_at < now() - make_interval(mins => $1)`, [minutes]),
+      // The newest check of this agent since a date that didn't fail, for the once-a-month rule.
+      recentFor: (agentKey, since) =>
+        one("SELECT * FROM lite_checks WHERE agent_key = $1 AND created_at >= $2 AND status <> 'failed' ORDER BY created_at DESC LIMIT 1", [agentKey, since]),
+      countForMember: async (memberId, since) =>
+        Number((await one("SELECT count(*) AS n FROM lite_checks WHERE member_id = $1 AND created_at >= $2 AND status <> 'failed'", [memberId, since])).n),
+      countSince: async (since) => Number((await one("SELECT count(*) AS n FROM lite_checks WHERE created_at >= $1 AND status <> 'failed'", [since])).n),
+      spendSince: async (since) => Number((await one('SELECT coalesce(sum(est_usd), 0) AS usd FROM lite_checks WHERE created_at >= $1', [since])).usd),
+      mine: (memberId) => q('SELECT * FROM lite_checks WHERE member_id = $1 ORDER BY created_at DESC LIMIT 20', [memberId]),
+      forAdmin: () => q(`SELECT l.*, m.name AS member_name FROM lite_checks l LEFT JOIN members m ON m.id = l.member_id ORDER BY l.created_at DESC LIMIT 200`),
     },
 
     game: {

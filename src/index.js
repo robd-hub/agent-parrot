@@ -38,6 +38,10 @@ const config = {
   // The grader's Stripe Payment Link for paying a Polly Test by card (public; the one on the grader's own request page).
   // Stripe asks for the agent's link itself and the grader opens the request, so card buyers don't use our form.
   cardPaymentLink: env.CARD_PAYMENT_LINK ?? 'https://buy.stripe.com/cNi3cx0K45eD1GT7acasg01',
+  // Free Lite Checks (src/lite-checks.js): the shared secret for the grader's private POST /api/lite/ (the same value
+  // as LITE_SECRET on the grader). Without it Lite Checks are off. LITE_MONTHLY_USD is the monthly AI spend stop (default 15).
+  liteSecret: env.LITE_SECRET,
+  liteMonthlyUsd: env.LITE_MONTHLY_USD,
   logEmails: !isProd && !env.VERCEL,
   devFakeLogin: !isProd && !env.VERCEL && env.DEV_FAKE_LOGIN === '1',
 };

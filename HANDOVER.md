@@ -10,7 +10,7 @@ Rules and commands are in `CLAUDE.md`. Update this file when something below cha
   automatically: https://agent-parrot.vercel.app. Behind Vercel's login until a custom domain is added,
   so the public can't see it yet.
 - Neon Postgres connected through Vercel. Set in Vercel by Rob so far: `SESSION_SECRET`, `DATABASE_URL`,
-  `ADMIN_PASSWORD`, `GRAPH_API_KEY`.
+  `ADMIN_PASSWORD`, `GRAPH_API_KEY`, `GITHUB_TOKEN`, `ANTHROPIC_API_KEY`, and Google, GitHub and LinkedIn sign-in keys.
 - Daily crons: `/api/cron/directories` 05:00 UTC, `/api/cron/hallucination` 06:00 UTC, `/api/cron/health` 01:00 and 13:00 UTC.
 
 ## Done (all merged with Rob's OK)
@@ -28,34 +28,15 @@ Rules and commands are in `CLAUDE.md`. Update this file when something below cha
 | #10 | Key details on every agent page (maker, links, first listed, how to connect, model, pricing), pages for each `/listed` agent and maker, maker reputation score (`src/makers.js`) |
 | #11 | Health checks (`src/health.js`): each listed agent visited at most once a day; Up/Down, response time, uptime % and tools on pages; "only agents that answered" filter; uptime in maker reputation. Cut to twice a day (01:00, 13:00 UTC) to save free-plan use |
 | #14 | Prices and activity: real x402 price per call (read, never paid), GitHub code activity (`src/activity.js`), last on-chain activity for ERC-8004 agents, recent activity in maker reputation |
+| #15 | Compare two agents (`/compare`, tested or listed side by side), Licence and Data privacy rows on agent pages (`src/openness.js`) |
+| #16 | Member reviews and ratings (`src/reviews.js`, `src/review-views.js`): 1 to 5 stars and an optional note, one per member per agent, edit or delete. Average on agent pages, `/agents` and `/listed` cards, maker pages and `/compare` ("Better" once both have 3+). Never changes grades, the Pecking Order or maker reputation (shown beside it as not counted). 10 saves/hour per member, 300/hour site-wide, 20 reports/day, hidden after 3 reports, makers can't review their own agent (GitHub login), names as "Ada L.". `/admin/reviews` to hide, restore or delete. Reviews on a listing move to the tested agent once matched |
 | #13 | Grade history chart on each tested agent's page (every past Agent Report Card run) and a Security section (HTTPS, key, payment, tool powers) |
-
-## In review
-
-- Compare two agents (branch `claude/compare-agents`): `/compare` puts any two agents (tested or listed) side by side:
-  grade, honesty, grade history, price per call, health and uptime, security flags, tools, activity, licence, data
-  privacy, maker and reputation, where listed. "Better" marks the higher score, uptime, reputation and listings and the
-  lower price, only when both have a number. Compare links on tested and listed agent pages, `/listed` cards, and the
-  `/agents` and `/listed` pages. Agent pages also get Licence and Data privacy rows (`src/openness.js`): the licence
-  comes from the GitHub repo's licence (read weekly) or `licence` in `data/agent-facts.json`; privacy shows a policy
-  only from `privacy`/`privacyUrl` in that file, plus plain facts (where data goes, x402 puts the wallet on chain).
-  Everything else says "not known". No sign-in needed. (Merged as #15.)
-- Member reviews and ratings (branch `claude/reviews-ratings`, `src/reviews.js`, `src/review-views.js`): signed-in, joined
-  members give any tested or listed agent 1 to 5 stars and an optional note (up to 1,000 characters), one per member per
-  agent, and can edit or delete it. Average and count show on agent pages (tested and listed), `/agents` and `/listed`
-  cards, maker pages and a new "Member reviews" row on `/compare` ("Better" only once both have 3+ reviews). Reviews never
-  change grades, the Pecking Order or the maker reputation score (the maker page shows the member average beside it,
-  labelled as not counted). Abuse protection: 10 saves an hour per member and 300 an hour site-wide, 20 reports a day,
-  hidden after reports from 3 members, makers signed in with GitHub can't review their own agent, names shown as
-  "Ada L.", text escaped, invisible characters stripped, at most 2 links. `/admin/reviews` lists reported reviews first
-  with Hide, Show again and Delete. Reviews on a listing move to the tested agent's page once it is matched (daily sync).
-  Live only once a sign-in option is set up in Vercel: none is yet (no Google, GitHub, LinkedIn or email keys).
 
 ## Waiting on Rob
 
 1. Buy the domains agentparrot.ai and agentparrots.com (about $170, Rob buys them on Cloudflare himself).
    Adding one to Vercel is what makes the site public.
-2. Sign-in apps (Google, GitHub, LinkedIn) and the email settings in `.env.example`. Reviews need at least one of these. The Claude API key is in (22 Nov 2026).
+2. Email settings in `.env.example` (for sign-in by email and The Squawk). Google, GitHub and LinkedIn sign-in and the Claude API key are set in Vercel (22 Nov 2026), so members can sign in and review now.
    Rob adds the values in Vercel himself. Never ask for them in chat and never put them in a file or PR.
 3. Move to Vercel Pro (about $20 a month) once the site takes money.
 4. Agent Parrot LinkedIn page, 20 builders to invite, a launch date.

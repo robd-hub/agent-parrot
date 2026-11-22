@@ -19,8 +19,8 @@ import { feedRoutes } from './feed.js';
 import { listedOn } from './directories.js';
 import { listedOnBlock, testedDetailsBlock } from './directory-views.js';
 import { reputationFor } from './directory-routes.js';
-import { testedDetails } from './makers.js';
-import { reviewRoutes, reviewSection } from './reviews.js';
+import { testedDetails, factsFor } from './makers.js';
+import { reviewRoutes, reviewSection, makerRatings } from './reviews.js';
 import { reviewsBlock, ratingFact, noticeFor } from './review-views.js';
 import { agentReportRoutes, reportSection } from './agent-reports.js';
 import { reportNoticeFor } from './agent-report-views.js';
@@ -129,8 +129,10 @@ export function createRoutes({
     const category = pickCategory(req.query.category);
     const agents = allAgents().filter((a) => !category || a.category === category);
     const listings = (await db.listings.listed()).filter((l) => !category || l.category === category);
-    const ratings = await db.reviews.summaries(agents.map((a) => a.id));
-    res.status(status).send(views.directoryPage({ agents, listings, ratings, category, signedIn: Boolean(req.session.uid), ...extra }));
+    const makerOf = Object.fromEntries(agents.map((a) => [a.id, factsFor(a.id).maker?.key]));
+    const [ratings, byMaker] = await Promise.all([db.reviews.summaries(agents.map((a) => a.id)), makerRatings(db, Object.values(makerOf))]);
+    const makerRatingsById = Object.fromEntries(agents.map((a) => [a.id, byMaker[makerOf[a.id]]]));
+    res.status(status).send(views.directoryPage({ agents, listings, ratings, makerRatings: makerRatingsById, category, signedIn: Boolean(req.session.uid), ...extra }));
   };
   app.get('/agents', (req, res) => directory(req, res, { notice: req.query.thanks ? "Thanks! Polly will take a look at it." : null }));
 
@@ -156,7 +158,9 @@ export function createRoutes({
       reviewSection(db, { agent: who, member, notice: noticeFor(req.query.review) }),
       reportSection(db, { agent: who, member, notice: reportNoticeFor(req.query.report) }),
     ]);
-    const details = testedDetailsBlock(d, { gradedAt: agent.gradedAt, rows, rep: (await reputationFor(db, d.makerKey))?.rep, report });
+    const maker = await reputationFor(db, d.makerKey);
+    const makerRating = maker ? (await db.reviews.makerSummaries([d.makerKey], { [d.makerKey]: maker.tested.map((a) => a.id) }))[d.makerKey] : null;
+    const details = testedDetailsBlock(d, { gradedAt: agent.gradedAt, rows, rep: maker?.rep, report, makerRating });
     // Signed-in members see their own review form, so their copy of the page is never cached for others.
     res.set('Cache-Control', req.session.uid ? 'private, no-store' : 'public, s-maxage=600, stale-while-revalidate=3600');
     res.send(views.agentPage({ agent, place: order.find((a) => a.id === agent.id).place, total: order.length, listed, details,

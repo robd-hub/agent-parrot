@@ -193,6 +193,16 @@ const SCHEMA = `
     value TEXT NOT NULL
   )`;
 
+// The agents that belong to each maker key in $n (an array), as (key, ref) rows named refs, for the review queries.
+// $n+1 and $n+2 are matching arrays of extra (key, tested id) pairs. A listing matched to a tested agent counts as that agent.
+const makerRefs = (n) => `refs AS (
+    SELECT maker_key AS key, coalesce(tested_id, source || ':' || source_id) AS ref FROM listed_agents WHERE maker_key = ANY($${n}::text[])
+    UNION SELECT k, t FROM unnest($${n + 1}::text[], $${n + 2}::text[]) AS x(k, t))`;
+const testedPairs = (keys, tested) => {
+  const pairs = keys.flatMap((k) => (tested[k] ?? []).map((id) => [k, id]));
+  return [pairs.map((p) => p[0]), pairs.map((p) => p[1])];
+};
+
 export async function connect({ databaseUrl, localDir } = {}) {
   if (databaseUrl) {
     const { default: pg } = await import('pg');
@@ -466,6 +476,27 @@ export function openDb(client) {
           WHERE agent_ref = ANY($1) AND NOT hidden GROUP BY agent_ref`, [list]);
         return Object.fromEntries(rows.map((r) => [r.agent_ref, { count: r.count, avg: r.avg }]));
       },
+      // What members think of each maker's agents taken together, counting visible reviews only:
+      // { key: { count, avg, members, agents, dist: [1-star count, ..., 5-star count] } }. A maker's agents are their
+      // listings plus `tested[key]`, the tested ids named for them in data/agent-facts.json.
+      async makerSummaries(keys, tested = {}) {
+        const list = [...new Set(keys.filter(Boolean))];
+        if (!list.length) return {};
+        const rows = await q(`WITH ${makerRefs(1)}
+          SELECT refs.key, count(*)::int AS count, avg(r.stars)::float AS avg, count(DISTINCT r.member_id)::int AS members,
+            count(DISTINCT r.agent_ref)::int AS agents,
+            array[${[1, 2, 3, 4, 5].map((n) => `count(*) FILTER (WHERE r.stars = ${n})`).join(', ')}]::int[] AS dist
+          FROM refs JOIN reviews r ON r.agent_ref = refs.ref WHERE NOT r.hidden GROUP BY refs.key`, [list, ...testedPairs(list, tested)]);
+        return Object.fromEntries(rows.map(({ key, ...s }) => [key, s]));
+      },
+      // The newest visible reviews of any of one maker's agents, with the listing's name and place where it is one.
+      forMaker: (key, testedIds = [], limit = 10) =>
+        q(`WITH ${makerRefs(1)}
+          SELECT r.id, r.agent_ref, r.stars, r.body, r.created_at, r.updated_at, m.name, m.first_name, m.last_name, m.role,
+            la.name AS agent_name, la.source, la.source_id
+          FROM refs JOIN reviews r ON r.agent_ref = refs.ref JOIN members m ON m.id = r.member_id
+          LEFT JOIN listed_agents la ON la.tested_id IS NULL AND la.source || ':' || la.source_id = r.agent_ref
+          WHERE NOT r.hidden ORDER BY r.updated_at DESC, r.id DESC LIMIT $4`, [[key], ...testedPairs([key], { [key]: testedIds }), limit]),
       // Saves and reports by one member (or everyone, with null) in the last so many seconds.
       recentActions: async (memberId, kind, seconds) => (await one(
         `SELECT count(*)::int AS n FROM review_actions WHERE ($1::text IS NULL OR member_id = $1) AND kind = $2

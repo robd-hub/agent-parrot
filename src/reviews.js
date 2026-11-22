@@ -5,7 +5,7 @@
 import express from 'express';
 import { agentById } from './agents.js';
 import { SOURCES } from './directories.js';
-import { testedDetails } from './makers.js';
+import { testedDetails, testedByMaker } from './makers.js';
 import { listedPath, listedRef } from './directory-views.js';
 import { pageNotFound } from './views.js';
 import { parseRef } from './compare.js';
@@ -73,6 +73,13 @@ export async function reviewSection(db, { agent, member, notice }) {
 export function combineSummaries(list) {
   const count = list.reduce((n, s) => n + (s?.count ?? 0), 0);
   return { count, avg: count ? list.reduce((n, s) => n + (s?.count ? s.avg * s.count : 0), 0) / count : null };
+}
+
+// What members think of each maker's agents taken together (src/db.js reviews.makerSummaries), by maker key.
+// Tested agents named for a maker in data/agent-facts.json count too, as on the maker's page.
+export function makerRatings(db, keys) {
+  const list = [...new Set(keys.filter(Boolean))];
+  return db.reviews.makerSummaries(list, Object.fromEntries(list.map((k) => [k, testedByMaker(k).map((a) => a.id)])));
 }
 
 export function reviewRoutes({ db, adminOnly }) {

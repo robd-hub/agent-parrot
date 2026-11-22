@@ -113,18 +113,65 @@ export function reviewsBlock(s, { tested = false } = {}) {
   </section>`;
 }
 
-// On a maker's page: what members think of their agents, shown apart from the reputation score.
-export function makerReviewsLine(s) {
-  return `<p class="small">${s?.count
-    ? `${stars(s.avg)} <b>${esc(fmt(s.avg))}</b> average from ${esc(plural(s.count, 'member review', 'member reviews'))} of their agents.`
-    : '<span class="muted">No member reviews of their agents yet.</span>'}
-    <span class="muted">Not counted in the reputation score, which only uses things Polly can check.</span></p>`;
-}
-
 const refPath = (ref) => {
   const m = /^(mcp|erc8004):(.+)$/.exec(ref);
   return m ? `/listed/${m[1]}/${m[2].split('/').map(encodeURIComponent).join('/')}` : `/agents/${encodeURIComponent(ref)}`;
 };
+
+// ----- A maker's agents taken together (src/db.js reviews.makerSummaries) -----
+// Shown apart from the maker reputation score, which only uses things Polly can check.
+
+const NOT_COUNTED = 'Not counted in the maker reputation score, which only uses things Polly can check. Reviews are opinions.';
+const across = (s) => `${plural(s.count, 'review', 'reviews')} of ${plural(s.agents, 'agent', 'agents')}`;
+
+// The small tag on directory cards. Only when members reviewed two or more of the maker's agents: with one it is the
+// same as that agent's own rating.
+export function makerRatingTag(s) {
+  if (!(s?.count && s.agents > 1)) return '';
+  return `<span class="tag tag-maker-rating" title="${esc(`This maker's agents together: ${fmt(s.avg)} out of 5 from ${across(s)}. ${NOT_COUNTED}`)}">Maker ★ ${esc(fmt(s.avg))} <span class="muted">(${Number(s.count).toLocaleString('en-GB')})</span></span>`;
+}
+
+// One line under the maker's reputation on an agent's page.
+export function makerRatingLine(s, path) {
+  const link = path ? ` <a href="${esc(path)}#maker-reviews">See them all</a>.` : '';
+  return `<p class="maker-rating small">${s?.count
+    ? `${stars(s.avg)} <b>${esc(fmt(s.avg))}</b> member rating across this maker's agents, from ${esc(across(s))}.${link}`
+    : '<span class="muted">No member reviews of this maker\'s agents yet.</span>'}
+    <span class="muted">Not counted in the reputation score.</span></p>`;
+}
+
+const agentLink = (r, names = {}) => {
+  const name = r.agent_name ?? names[r.agent_ref] ?? r.agent_ref;
+  return `<a href="${esc(refPath(r.agent_ref))}#reviews">${esc(name)}</a>`;
+};
+
+// The reviews section on a maker's page: their agents' reviews combined, a spread of stars and the newest reviews.
+// `names` gives tested agents' names by id.
+export function makerReviewsBlock({ summary: s, recent = [], name, names = {} }) {
+  const head = `<h2>What members say</h2>
+    <p class="muted small">Every member review of ${esc(name)}'s agents, put together. ${esc(NOT_COUNTED)}
+      Reviews are written on each agent's own page, and a member can review each agent once.</p>`;
+  if (!s?.count) return `<section class="card section reviews" id="maker-reviews">${head}<p class="muted">No member reviews of their agents yet.</p></section>`;
+  const most = Math.max(...s.dist);
+  const bars = [5, 4, 3, 2, 1].map((n) => {
+    const c = s.dist[n - 1] ?? 0;
+    return `<li><span class="dist-label">${n}★</span><span class="dist-bar" aria-hidden="true"><span style="width:${most ? ((c / most) * 100).toFixed(0) : 0}%"></span></span><span class="dist-n">${Number(c).toLocaleString('en-GB')}</span></li>`;
+  }).join('');
+  const items = recent.map((r) => `<li class="review">
+      <div class="review-head">${stars(r.stars)} <b>${esc(displayName(r))}</b> <span class="muted small">on ${agentLink(r, names)} · ${ROLE_SHORT[r.role] ? `${esc(ROLE_SHORT[r.role])} · ` : ''}${esc(dateLabel(r.updated_at))}</span></div>
+      ${r.body ? `<div class="review-body">${bodyHtml(r.body)}</div>` : ''}
+    </li>`).join('');
+  return `<section class="card section reviews" id="maker-reviews">${head}
+    <div class="maker-reviews-top">
+      <div class="review-summary"><span class="review-avg">${esc(fmt(s.avg))}</span>${stars(s.avg, { size: 'lg' })}
+        <span class="muted">${esc(across(s))}<br>from ${esc(plural(s.members, 'member', 'members'))}</span></div>
+      <ul class="dist" aria-label="How many reviews gave each number of stars">${bars}</ul>
+    </div>
+    ${s.members < 3 ? '<p class="muted small">Only a few members so far, so treat this as an early read.</p>' : ''}
+    ${items ? `<h3>Newest reviews</h3><ul class="review-list">${items}</ul>` : ''}
+    ${s.count > recent.length ? `<p class="muted small">Showing the ${recent.length} newest. Each agent's page has the rest.</p>` : ''}
+  </section>`;
+}
 
 export function adminReviewsPage({ reviews, hideAt }) {
   const rows = reviews.map((r) => `<tr${r.hidden ? ' class="muted"' : ''}>

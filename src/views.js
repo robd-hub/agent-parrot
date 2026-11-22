@@ -1,7 +1,7 @@
 // Page HTML, built from template strings. Escape everything that isn't written here by hand with esc().
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { CATEGORIES, categoryName, GRADE_MEANING, verdict } from './agents.js';
-import { ratingTag } from './review-views.js';
+import { ratingTag, makerRatingTag } from './review-views.js';
 
 export const esc = (v) =>
   String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -106,12 +106,12 @@ const verdictTag = (grade) => {
 };
 const honestyTag = (h) => (h === 'passed' ? '<span class="tag tag-pass">Honest</span>' : h === 'failed' ? '<span class="tag tag-fail">Made it up</span>' : '');
 
-export function agentCard(a, rating) {
+export function agentCard(a, rating, makerRating) {
   return `<a class="agent-card" href="/agents/${esc(a.id)}">
       ${gradeBadge(a.grade)}
       <span class="agent-main"><strong>${esc(a.name)}</strong><span class="muted small">${esc(categoryName(a.category))} · Squawk Score ${Number(a.score)}</span>
         <span class="agent-desc">${esc(a.description)}</span></span>
-      <span class="agent-tags">${verdictTag(a.grade)}${honestyTag(a.honesty)}${ratingTag(rating)}</span>
+      <span class="agent-tags">${verdictTag(a.grade)}${honestyTag(a.honesty)}${ratingTag(rating)}${makerRatingTag(makerRating)}</span>
     </a>`;
 }
 
@@ -269,7 +269,7 @@ export function articleCard(x) {
 
 // ----- Directory, agent pages and the Pecking Order -----
 
-export function directoryPage({ agents, listings, ratings = {}, category, notice, error, signedIn }) {
+export function directoryPage({ agents, listings, ratings = {}, makerRatings = {}, category, notice, error, signedIn }) {
   const cats = CATEGORIES.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
   return layout('Tested AI agents', `
     <section class="page-head">
@@ -279,7 +279,7 @@ export function directoryPage({ agents, listings, ratings = {}, category, notice
         Tap any agent to see its answers.</p>
     </section>
     ${categoryTabs('/agents', category)}
-    <div class="agent-list">${agents.map((a) => agentCard(a, ratings[a.id])).join('') || '<p class="muted">No tested agents in this category yet.</p>'}</div>
+    <div class="agent-list">${agents.map((a) => agentCard(a, ratings[a.id], makerRatings[a.id])).join('') || '<p class="muted">No tested agents in this category yet.</p>'}</div>
     ${listings.length ? `<section class="section">
       <h2>Not Polly Tested yet</h2>
       <p class="muted">Listed so you can find them. Polly hasn't checked their work, so there's no grade.</p>

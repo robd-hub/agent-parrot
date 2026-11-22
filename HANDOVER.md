@@ -5,13 +5,14 @@ Rules and commands are in `CLAUDE.md`. Update this file when something below cha
 
 ## Live now
 
-- Repo `robd-hub/agent-parrot`, default branch `main`. `npm test`: 53 tests, all passing.
+- Repo `robd-hub/agent-parrot`, default branch `main`. `npm test`: 57 tests, all passing.
 - Vercel project `agent-parrot` (team designimp-projects, Hobby plan), linked to the repo, deploys `main`
   automatically: https://agent-parrot.vercel.app. Behind Vercel's login until a custom domain is added,
   so the public can't see it yet.
 - Neon Postgres connected through Vercel. Set in Vercel by Rob so far: `SESSION_SECRET`, `DATABASE_URL`,
   `ADMIN_PASSWORD`, `GRAPH_API_KEY`, `GITHUB_TOKEN`, `ANTHROPIC_API_KEY`, and Google, GitHub and LinkedIn sign-in keys.
 - Daily crons: `/api/cron/directories` 05:00 UTC, `/api/cron/hallucination` 06:00 UTC, `/api/cron/health` 01:00 and 13:00 UTC.
+  Weekly: `/api/cron/digest` Mondays 07:00 UTC (builds last week's top-movers digest; never posts anywhere).
 
 ## Done (all merged with Rob's OK)
 
@@ -30,6 +31,7 @@ Rules and commands are in `CLAUDE.md`. Update this file when something below cha
 | #14 | Prices and activity: real x402 price per call (read, never paid), GitHub code activity (`src/activity.js`), last on-chain activity for ERC-8004 agents, recent activity in maker reputation |
 | #15 | Compare two agents (`/compare`, tested or listed side by side), Licence and Data privacy rows on agent pages (`src/openness.js`) |
 | #16 | Member reviews and ratings (`src/reviews.js`, `src/review-views.js`): 1 to 5 stars and an optional note, one per member per agent, edit or delete. Average on agent pages, `/agents` and `/listed` cards, maker pages and `/compare` ("Better" once both have 3+). Never changes grades, the Pecking Order or maker reputation (shown beside it as not counted). 10 saves/hour per member, 300/hour site-wide, 20 reports/day, hidden after 3 reports, makers can't review their own agent (GitHub login), names as "Ada L.". `/admin/reviews` to hide, restore or delete. Reviews on a listing move to the tested agent once matched |
+| (open) | Weekly top-movers digest (`src/digest.js`, `src/digest-views.js`): biggest grade climbs and drops, first Polly Tests, agents that went quiet or came back (health), member reviews, new directory listings, top 3. Built Mondays 07:00 UTC and kept per week (`digests` table); earlier weeks are filled in from grade history (no health for those). Public `/digest` and `/digest/<monday>`; `/admin/digest` has the ready-to-post LinkedIn text with a copy button. Rob posts it himself, nothing is auto-posted |
 | #13 | Grade history chart on each tested agent's page (every past Agent Report Card run) and a Security section (HTTPS, key, payment, tool powers) |
 
 ## Waiting on Rob

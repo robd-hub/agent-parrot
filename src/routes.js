@@ -21,6 +21,7 @@ import { listedOnBlock, testedDetailsBlock } from './directory-views.js';
 import { reputationFor } from './directory-routes.js';
 import { testedDetails } from './makers.js';
 import { reviewRoutes, reviewSection } from './reviews.js';
+import { digestRoutes } from './digest.js';
 import { reviewsBlock, ratingFact, noticeFor } from './review-views.js';
 
 // A complete app around the routes, used by tests.
@@ -350,6 +351,7 @@ export function createRoutes({
   app.use(feedRoutes({ config }));
   app.use(compareRoutes({ db }));
   app.use(reviewRoutes({ db, adminOnly }));
+  app.use(digestRoutes({ db, config, adminOnly, now }));
 
   app.get('/admin', adminOnly, async (req, res) => {
     res.set('Cache-Control', 'private, no-store');
@@ -432,9 +434,10 @@ export function createRoutes({
 
   app.get('/sitemap.xml', async (req, res) => {
     const xmlEsc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const urls = ['/', '/agents', '/listed', '/pecking-order', '/news', '/game', '/articles', '/get-polly-tested', '/feed', '/squawk', '/privacy'].map((p) => ({ loc: p }));
+    const urls = ['/', '/agents', '/listed', '/pecking-order', '/news', '/game', '/articles', '/get-polly-tested', '/feed', '/squawk', '/digest', '/privacy'].map((p) => ({ loc: p }));
     for (const a of allAgents()) urls.push({ loc: `/agents/${a.id}`, lastmod: a.gradedAt.slice(0, 10) });
     for (const x of ARTICLES) urls.push({ loc: `/articles/${x.slug}`, lastmod: x.date });
+    for (const w of await db.digest.weeks()) urls.push({ loc: `/digest/${w}` });
     for (const s of (await db.stories.recent(60)).filter((s) => !s.hidden)) urls.push({ loc: `/news/${Number(s.id)}`, lastmod: s.day });
     res.set('Cache-Control', 'public, s-maxage=3600').type('application/xml').send(
       `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) =>

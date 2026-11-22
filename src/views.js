@@ -90,7 +90,7 @@ export function layout(title, body, { wide = false, description = DEFAULT_DESCRI
       <div><img src="/parrot.svg" width="36" height="36" alt=""> <strong>${SLOGAN}.</strong></div>
       <p>Grades come from <a href="${esc(graderUrl())}">Agent Report Card</a>, two independent judges per answer.
         The Daily Hallucination is satire: the stories are made up on purpose and link to the real news they poke fun at.</p>
-      <p><a href="/squawk">The Squawk</a> · <a href="/articles">Articles</a> · <a href="/get-polly-tested">Get Polly Tested</a> · <a href="/feed">Grades feed</a> · <a href="/privacy">Privacy</a></p>
+      <p><a href="/squawk">The Squawk</a> · <a href="/digest">Top movers</a> · <a href="/articles">Articles</a> · <a href="/get-polly-tested">Get Polly Tested</a> · <a href="/feed">Grades feed</a> · <a href="/privacy">Privacy</a></p>
     </div>
   </footer>
 </body>

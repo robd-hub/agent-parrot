@@ -10,7 +10,7 @@ export function adminHome({ o, members, syncedAt }) {
       <td>${esc(m.email ?? '')}</td><td>${esc(provider(m.id))}</td><td>${esc(roleLabel(m.role))}</td><td>${m.squawk_optin ? 'Yes' : ''}</td>
       <td>${esc(m.joined_from ?? '')}</td><td>${esc(dateLabel(m.consent_at))}</td></tr>`).join('');
   return layout('Admin', `<section class="card">
-    <div class="card-head"><h1>Admin</h1><nav class="tabs inline-tabs"><a href="/admin/news">Daily Hallucination</a><a href="/admin/squawk">The Squawk</a><a href="/admin/listings">Listings${o.suggestions ? ` (${Number(o.suggestions)} new)` : ''}</a><a href="/admin/directories">Directories</a><a href="/admin/reviews">Reviews</a></nav></div>
+    <div class="card-head"><h1>Admin</h1><nav class="tabs inline-tabs"><a href="/admin/news">Daily Hallucination</a><a href="/admin/squawk">The Squawk</a><a href="/admin/listings">Listings${o.suggestions ? ` (${Number(o.suggestions)} new)` : ''}</a><a href="/admin/directories">Directories</a><a href="/admin/reviews">Reviews</a><a href="/admin/reports">Agent reports${o.openReports ? ` (${Number(o.openReports)} open)` : ''}</a><a href="/admin/claims">Claims</a></nav></div>
     <div class="stat-strip small">
       <div><strong>${Number(o.members.joined)}</strong><span>members</span></div>
       <div><strong>${Number(o.members.joined_7d)}</strong><span>joined this week</span></div>

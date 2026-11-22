@@ -5,7 +5,7 @@ Rules and commands are in `CLAUDE.md`. Update this file when something below cha
 
 ## Live now
 
-- Repo `robd-hub/agent-parrot`, default branch `main`. `npm test`: 54 tests, all passing.
+- Repo `robd-hub/agent-parrot`, default branch `main`. `npm test`: 64 tests, all passing.
 - Vercel project `agent-parrot` (team designimp-projects, Hobby plan), linked to the repo, deploys `main`
   automatically: https://agent-parrot.vercel.app. Behind Vercel's login until a custom domain is added,
   so the public can't see it yet.
@@ -30,6 +30,7 @@ Rules and commands are in `CLAUDE.md`. Update this file when something below cha
 | #14 | Prices and activity: real x402 price per call (read, never paid), GitHub code activity (`src/activity.js`), last on-chain activity for ERC-8004 agents, recent activity in maker reputation |
 | #15 | Compare two agents (`/compare`, tested or listed side by side), Licence and Data privacy rows on agent pages (`src/openness.js`) |
 | #16 | Member reviews and ratings (`src/reviews.js`, `src/review-views.js`): 1 to 5 stars and an optional note, one per member per agent, edit or delete. Average on agent pages, `/agents` and `/listed` cards, maker pages and `/compare` ("Better" once both have 3+). Never changes grades, the Pecking Order or maker reputation (shown beside it as not counted). 10 saves/hour per member, 300/hour site-wide, 20 reports/day, hidden after 3 reports, makers can't review their own agent (GitHub login), names as "Ada L.". `/admin/reviews` to hide, restore or delete. Reviews on a listing move to the tested agent once matched |
+| #18 | Report an agent (`src/agent-reports.js`, `src/agent-report-views.js`): signed-in members pick scam, broken, misleading, unsafe permissions or other, with a note (500 characters, needed for other). One open report per member per agent, 5 a day per member, 100 an hour site-wide. Rob checks them at `/admin/reports` (Confirm with an optional public note, Dismiss, Take down flag). Confirmed reports show as a community flag at the top of the agent's Security section (and on `/compare`, and a "Reported" tag on `/listed` cards), saying it is from members, not a Polly test. 3+ members with open reports shows "still checking, not confirmed". Agents are never hidden. Reports move to the tested page once a listing is matched |
 | #20 | Maker reviews: every member review of a maker's agents put together on their page (average, how many reviews, agents and members, a 1 to 5 star spread, the 10 newest with links to each agent). A compact line under the maker reputation on agent pages, and a "Maker ★" tag on `/agents` and `/listed` cards once two or more of their agents have reviews. Still never counted in the maker reputation score. Hidden reviews drop out. `reviews.makerSummaries` and `reviews.forMaker` in `src/db.js` |
 | #13 | Grade history chart on each tested agent's page (every past Agent Report Card run) and a Security section (HTTPS, key, payment, tool powers) |
 
@@ -45,9 +46,18 @@ Rules and commands are in `CLAUDE.md`. Update this file when something below cha
 ## Paused or parked
 
 - The Daily Hallucination run starts paused. Once `ANTHROPIC_API_KEY` is set, resume it at `/admin/news`.
-- Claim-your-listing growth plan (builders claim their `/listed` agent, get a badge, nudged to a paid test):
-  written up, not built. Parked until 21 Dec 2026. Never email addresses taken from GitHub or open automated
-  GitHub issues.
+- Claim your listing (plan: https://claude.ai/artifact/PyimNwAzzWtZs6FvjfwueJ). Rob said build it now (22 Nov 2026).
+  First part is in the PR from `claude/claim-your-listing`: a signed-in member claims a listed or tested agent at
+  `/claim?ref=<ref>`. Proof only from what the listing itself names: GitHub sign-in as the registry-checked
+  `io.github.<login>` (or the `maker.key` in `data/agent-facts.json`), or a code (`agent-parrot-verify=…`, made from
+  `SESSION_SECRET`, nothing stored) in `/.well-known/agent-parrot.txt` on the agent's endpoint, website or checked
+  domain, or in `agent-parrot.txt` in its GitHub repo. One owner per agent; `/admin/claims` to remove one.
+  Claimed pages get a "Claimed by its maker" tick, the free basic check (the existing health check, plus "Check now"
+  every 10 minutes), a badge `/badge.svg?ref=<ref>` (Claimed / Up / Down, or the grade for Polly Tested agents; links
+  back with `?from=badge`) and a Polly Test nudge. `/me` lists listings under the member's GitHub login to claim.
+  Not built yet: wallet signatures for ERC-8004, editing description/logo, "your agent is down" emails, claims
+  lapsing after 30 days, moving a claim when a listing gets matched to a tested agent. Badges only show to the
+  public once the custom domain is live. Never email addresses taken from GitHub or open automated GitHub issues.
 - The SealKeeper-style badge idea was dropped.
 - Publishing the grades feed to outsiders only works once a custom domain is live.
 

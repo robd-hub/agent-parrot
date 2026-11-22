@@ -22,6 +22,10 @@ import { reputationFor } from './directory-routes.js';
 import { testedDetails, factsFor } from './makers.js';
 import { reviewRoutes, reviewSection, makerRatings } from './reviews.js';
 import { reviewsBlock, ratingFact, noticeFor } from './review-views.js';
+import { agentReportRoutes, reportSection } from './agent-reports.js';
+import { reportNoticeFor } from './agent-report-views.js';
+import { claimRoutes, claimInfo, claimsForMember } from './claims.js';
+import { claimTag, memberClaimsBlock } from './claim-views.js';
 
 // A complete app around the routes, used by tests.
 export function createApp(options) {
@@ -148,14 +152,19 @@ export function createRoutes({
     const rows = await db.listed.forTested(agent.id);
     const listed = listedOnBlock(listedOn(agent, rows));
     const d = testedDetails(agent, rows);
+    const member = await memberOf(req);
+    const who = { ref: agent.id, name: agent.name, makerKey: d.makerKey };
+    const [reviews, report] = await Promise.all([
+      reviewSection(db, { agent: who, member, notice: noticeFor(req.query.review) }),
+      reportSection(db, { agent: who, member, notice: reportNoticeFor(req.query.report) }),
+    ]);
     const maker = await reputationFor(db, d.makerKey);
     const makerRating = maker ? (await db.reviews.makerSummaries([d.makerKey], { [d.makerKey]: maker.tested.map((a) => a.id) }))[d.makerKey] : null;
-    const details = testedDetailsBlock(d, { gradedAt: agent.gradedAt, rows, rep: maker?.rep, makerRating });
-    const reviews = await reviewSection(db, { agent: { ref: agent.id, name: agent.name, makerKey: d.makerKey }, member: await memberOf(req), notice: noticeFor(req.query.review) });
+    const details = testedDetailsBlock(d, { gradedAt: agent.gradedAt, rows, rep: maker?.rep, report, makerRating });
     // Signed-in members see their own review form, so their copy of the page is never cached for others.
     res.set('Cache-Control', req.session.uid ? 'private, no-store' : 'public, s-maxage=600, stale-while-revalidate=3600');
     res.send(views.agentPage({ agent, place: order.find((a) => a.id === agent.id).place, total: order.length, listed, details,
-      rating: ratingFact(reviews.summary), reviews: reviewsBlock(reviews, { tested: true }) }));
+      rating: ratingFact(reviews.summary), reviews: reviewsBlock(reviews, { tested: true }), claim: claimTag(await claimInfo(db, agent.id)) }));
   });
 
   app.get('/pecking-order', (req, res) => {
@@ -323,9 +332,9 @@ export function createRoutes({
   });
 
   app.get('/me', signedIn, joined, async (req, res) => {
-    const [inviteCode, invited, streak] = await Promise.all([db.invites.codeFor(req.member.id), db.invites.count(req.member.id), db.game.streak(req.member.id, today())]);
+    const [inviteCode, invited, streak, claims] = await Promise.all([db.invites.codeFor(req.member.id), db.invites.count(req.member.id), db.game.streak(req.member.id, today()), claimsForMember(db, req.member)]);
     res.set('Cache-Control', 'private, no-store');
-    res.send(views.mePage({ member: req.member, inviteCode, invited, streak }));
+    res.send(views.mePage({ member: req.member, inviteCode, invited, streak, claims: memberClaimsBlock(claims) }));
   });
 
   app.post('/remove', signedIn, async (req, res) => {
@@ -354,6 +363,8 @@ export function createRoutes({
   app.use(feedRoutes({ config }));
   app.use(compareRoutes({ db }));
   app.use(reviewRoutes({ db, adminOnly }));
+  app.use(agentReportRoutes({ db, adminOnly }));
+  app.use(claimRoutes({ db, config, adminOnly, fetchFn, lookup }));
 
   app.get('/admin', adminOnly, async (req, res) => {
     res.set('Cache-Control', 'private, no-store');
@@ -430,7 +441,7 @@ export function createRoutes({
 
   app.get('/robots.txt', (req, res) => {
     res.type('text/plain').send(['User-agent: *',
-      ...['/admin', '/auth', '/api', '/join', '/me', '/signin', '/signup', '/logout', '/remove'].map((p) => `Disallow: ${p}`),
+      ...['/admin', '/auth', '/api', '/join', '/me', '/signin', '/signup', '/logout', '/remove', '/claim'].map((p) => `Disallow: ${p}`),
       '', `Sitemap: ${config.baseUrl}/sitemap.xml`, ''].join('\n'));
   });
 

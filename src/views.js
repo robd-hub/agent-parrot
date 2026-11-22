@@ -333,7 +333,7 @@ export function historyBlock(agent) {
   </section>`;
 }
 
-export function agentPage({ agent, place, total, listed = '', details = '', rating = '', reviews = '' }) {
+export function agentPage({ agent, place, total, listed = '', details = '', rating = '', reviews = '', claim = '' }) {
   const tasks = agent.tasks.map((t) => `
       <article class="task">
         <div class="task-head"><span class="task-score score-${t.score === null ? 'none' : t.score >= 70 ? 'ok' : 'bad'}">${t.score === null ? '…' : Number(t.score)}</span>
@@ -347,6 +347,7 @@ export function agentPage({ agent, place, total, listed = '', details = '', rati
       ${gradeBadge(agent.grade, { size: 'xl' })}
       <div>
         <p class="eyebrow">${esc(categoryName(agent.category))} · Polly Tested ${esc(dateLabel(agent.gradedAt))}</p>
+        ${claim}
         <h1>${esc(agent.name)}</h1>
         <p class="lead">${esc(agent.description)}</p>
         <p class="meaning"><strong>Grade ${esc(agent.grade)}.</strong> ${esc(GRADE_MEANING[agent.grade])}</p>
@@ -614,7 +615,7 @@ export function joinPage({ member, error }) {
 
 export const FOUNDING_MEMBERS = 1000;
 
-export function mePage({ member, inviteCode, invited, streak }) {
+export function mePage({ member, inviteCode, invited, streak, claims = '' }) {
   const invite = siteUrl(`/i/${inviteCode}`);
   const founding = member.member_number && member.member_number <= FOUNDING_MEMBERS;
   return layout('Your perch', `
@@ -624,6 +625,7 @@ export function mePage({ member, inviteCode, invited, streak }) {
           <p>${member.member_number ? `<span class="tag ${founding ? 'founding' : ''}">${founding ? 'Founding member' : 'Member'} #${Number(member.member_number)}</span>` : ''}
             ${streak ? `<span class="tag">Game streak: ${Number(streak)}</span>` : ''}</p></div></div>
     </section>
+    ${claims}
     <section class="card">
       <h2>Bring a friend to the flock</h2>
       <p>Your personal invite link. ${invited ? `${Number(invited)} ${invited === 1 ? 'person has' : 'people have'} joined through it so far.` : "We'll count who joins through it."}</p>

@@ -9,6 +9,7 @@ import { testedDetails } from './makers.js';
 import { reputationFor } from './directory-routes.js';
 import { mainRow, listedPath, listedRef } from './directory-views.js';
 import { comparePage } from './compare-views.js';
+import { communityFlags } from './agent-reports.js';
 
 export function parseRef(ref) {
   const s = String(ref ?? '').trim().slice(0, 300);
@@ -20,7 +21,11 @@ export function parseRef(ref) {
 // Everything the compare table needs about one agent, tested or listed.
 export async function loadProfile(db, ref) {
   const profile = await loadBase(db, ref);
-  if (profile) profile.reviews = (await db.reviews.summaries([profile.ref]))[profile.ref] ?? { count: 0, avg: null };
+  if (profile) {
+    const [reviews, reports] = await Promise.all([db.reviews.summaries([profile.ref]), db.agentReports.summaries([profile.ref])]);
+    profile.reviews = reviews[profile.ref] ?? { count: 0, avg: null };
+    profile.community = communityFlags(reports[profile.ref]);
+  }
   return profile;
 }
 

@@ -9,7 +9,11 @@ import { makerKeyFrom, makerReputation, testedByMaker } from './makers.js';
 import { pageNotFound } from './views.js';
 import { reviewSection, makerRatings } from './reviews.js';
 import { noticeFor } from './review-views.js';
+import { reportSection } from './agent-reports.js';
+import { reportNoticeFor } from './agent-report-views.js';
 import { listedRef } from './directory-views.js';
+import { claimInfo } from './claims.js';
+import { claimTag } from './claim-views.js';
 
 // A maker's reputation, worked out from what we hold about them (see src/makers.js).
 export async function reputationFor(db, key) {
@@ -34,13 +38,14 @@ export function directoryRoutes({ db, config, adminOnly, fetchFn = fetch, lookup
       db.listed.counts(),
     ]);
     const makers = [...new Set(rows.map((r) => r.maker_key).filter(Boolean))];
-    const [makerCounts, ratings, makerRatingsByKey] = await Promise.all([
+    const [makerCounts, ratings, reports, makerRatingsByKey] = await Promise.all([
       db.listed.makerCounts(makers),
       db.reviews.summaries(rows.map(listedRef)),
+      db.agentReports.summaries(rows.map(listedRef)),
       makerRatings(db, makers),
     ]);
     res.set('Cache-Control', 'public, s-maxage=600, stale-while-revalidate=3600');
-    res.send(listedPage({ rows, total, query, source, live, page, counts, makerCounts, ratings, makerRatings: makerRatingsByKey }));
+    res.send(listedPage({ rows, total, query, source, live, page, counts, makerCounts, ratings, reports, makerRatings: makerRatingsByKey }));
   });
 
   // One listed agent. MCP names have a slash in them, so the id can be several path segments.
@@ -53,13 +58,15 @@ export function directoryRoutes({ db, config, adminOnly, fetchFn = fetch, lookup
     const maker = await reputationFor(db, r.maker_key);
     const more = maker ? (await db.listed.byMaker(r.maker_key, 11)).filter((m) => m.source_id !== r.source_id || m.source !== r.source).slice(0, 10) : [];
     const member = (req.session.uid && (await db.get(req.session.uid))) || null;
-    const [reviews, makerRating] = await Promise.all([
-      reviewSection(db, { agent: { ref: listedRef(r), name: r.name, makerKey: r.maker_key }, member, notice: noticeFor(req.query.review) }),
+    const agent = { ref: listedRef(r), name: r.name, makerKey: r.maker_key };
+    const [reviews, report, makerRating] = await Promise.all([
+      reviewSection(db, { agent, member, notice: noticeFor(req.query.review) }),
+      reportSection(db, { agent, member, notice: reportNoticeFor(req.query.report) }),
       maker ? db.reviews.makerSummaries([r.maker_key], { [r.maker_key]: maker.tested.map((a) => a.id) }) : {},
     ]);
     // Signed-in members see their own review form, so their copy of the page is never cached for others.
     res.set('Cache-Control', req.session.uid ? 'private, no-store' : 'public, s-maxage=600, stale-while-revalidate=3600');
-    res.send(listedAgentPage({ r, rep: maker?.rep, more, reviews, makerRating: makerRating[r.maker_key] }));
+    res.send(listedAgentPage({ r, rep: maker?.rep, more, reviews, report, claim: claimTag(await claimInfo(db, listedRef(r))), makerRating: makerRating[r.maker_key] }));
   });
 
   app.get('/makers/:kind/:id', async (req, res) => {

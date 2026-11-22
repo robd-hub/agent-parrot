@@ -704,11 +704,12 @@ export function openDb(client) {
       // A run that never came back (the page was closed mid-run) is given up after a few minutes.
       expire: (minutes = 5) => q(`UPDATE lite_checks SET status = 'failed', error = 'The check took too long and was stopped.', finished_at = now()
                                   WHERE status = 'running' AND started_at < now() - make_interval(mins => $1)`, [minutes]),
-      // The newest check of this agent since a date that didn't fail, for the once-a-month rule.
+      // The newest check of this agent since a date that gave a band, for the once-a-month rule.
+      // A check that failed or came back "couldn't check" doesn't use up the agent's or the member's free check.
       recentFor: (agentKey, since) =>
-        one("SELECT * FROM lite_checks WHERE agent_key = $1 AND created_at >= $2 AND status <> 'failed' ORDER BY created_at DESC LIMIT 1", [agentKey, since]),
+        one("SELECT * FROM lite_checks WHERE agent_key = $1 AND created_at >= $2 AND status <> 'failed' AND coalesce(band, '') <> 'couldnt-check' ORDER BY created_at DESC LIMIT 1", [agentKey, since]),
       countForMember: async (memberId, since) =>
-        Number((await one("SELECT count(*) AS n FROM lite_checks WHERE member_id = $1 AND created_at >= $2 AND status <> 'failed'", [memberId, since])).n),
+        Number((await one("SELECT count(*) AS n FROM lite_checks WHERE member_id = $1 AND created_at >= $2 AND status <> 'failed' AND coalesce(band, '') <> 'couldnt-check'", [memberId, since])).n),
       countSince: async (since) => Number((await one("SELECT count(*) AS n FROM lite_checks WHERE created_at >= $1 AND status <> 'failed'", [since])).n),
       spendSince: async (since) => Number((await one('SELECT coalesce(sum(est_usd), 0) AS usd FROM lite_checks WHERE created_at >= $1', [since])).usd),
       mine: (memberId) => q('SELECT * FROM lite_checks WHERE member_id = $1 ORDER BY created_at DESC LIMIT 20', [memberId]),

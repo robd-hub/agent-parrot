@@ -47,6 +47,8 @@ export function testedDetails(agent, rows = []) {
     pricing: f.pricing || null,
     x402: rows.some((r) => r.x402) || /x402/i.test(f.pricing ?? ''),
     note: f.note || null,
+    // Licence and privacy facts, only where Rob or the maker confirmed them (src/openness.js shows the rest as not known).
+    facts: { licence: f.licence, openSource: f.openSource, privacy: f.privacy, privacyUrl: f.privacyUrl, repo: f.repo },
   };
 }
 

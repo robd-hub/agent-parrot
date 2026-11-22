@@ -128,7 +128,7 @@ export function testedFor(link) {
   if (!l) return null;
   const mp = /^\d{1,7}$/.test(l) ? Number(l) : /openserv/i.test(l) ? Number((/agents?\/(\d{1,7})(?!\d)/i.exec(l) ?? [])[1]) : NaN;
   const same = (a, b) => String(a ?? '').replace(/\/+$/, '').toLowerCase() === b.replace(/\/+$/, '').toLowerCase();
-  return allAgents().find((a) => (Number.isFinite(mp) && a.marketplaceId === mp) || (a.url && same(a.url, l))) ?? null;
+  return allAgents().find((a) => (Number.isFinite(mp) && a.marketplaceId === mp) || (a.endpoint && same(a.endpoint, l)) || (a.url && same(a.url, l))) ?? null;
 }
 
 // What the form starts with when someone comes from an agent's page (?ref=) or an older link (?agent=).
@@ -140,11 +140,14 @@ export async function prefill(db, query) {
   if (!c) return out;
   const tested = c.tested ?? null;
   const isMcp = !tested && c.row?.source === 'mcp' && Boolean(c.row?.endpoint);
-  const link = tested ? (tested.url || '') : isMcp ? asMcp(c.row.endpoint) : (c.row?.endpoint || c.row?.url || '');
+  // A tested agent is prefilled with the exact address Polly tested it at, so the grader sees a $5 retest.
+  const testedLink = tested && (tested.marketplaceId ? tested.url : tested.endpoint ? (tested.adapter === 'mcp' ? asMcp(tested.endpoint) : tested.endpoint) : tested.url);
+  const link = tested ? (testedLink || '') : isMcp ? asMcp(c.row.endpoint) : (c.row?.endpoint || c.row?.url || '');
   out.agentRef = c.ref;
   out.from = { name: c.name, path: c.path, tested, mcp: isMcp || looksLikeMcp(link) };
   out.form.agent ||= link;
   out.form.name ||= c.name;
+  if (tested?.adapter === 'openai-compatible' && tested.model) out.form.model ||= tested.model;
   if (!out.form.whatItDoes) out.form.whatItDoes = clean(tested?.description || c.row?.description, FIELDS.whatItDoes);
   return out;
 }

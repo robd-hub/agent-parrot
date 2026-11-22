@@ -35,7 +35,7 @@ function checkBlock({ check, canCheck, mine, ref }) {
        ${!check.up && check.note ? `<p class="muted small">${esc(check.note)}</p>` : ''}`
     : `<p class="muted">${canCheck ? 'Not checked yet.' : "This listing names no address we can check, so there's no basic check yet."}</p>`;
   return `<section class="card section"><h2>Free basic check</h2>
-    <p>Does it answer, what tools does it list, and how fast does it reply. It says whether your agent is <b>alive</b>, never whether it's <b>good</b>, so it gives no score or grade. We run it every few days on our own.</p>
+    <p>Does it answer, what tools does it list, and how fast does it reply. It says whether your agent is <b>alive</b>, never whether it's <b>good</b>, so it gives no score or grade. We run it on our own about once a day.</p>
     ${result}
     ${mine && canCheck ? `<form method="post" action="/claim/check"><input type="hidden" name="ref" value="${esc(ref)}"><button type="submit" class="ghost">Check now</button></form>` : ''}
   </section>`;

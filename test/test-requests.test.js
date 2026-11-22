@@ -81,6 +81,10 @@ test('the form is prefilled from a listing, MCP servers included', async () => {
     const mp = allAgents().find((a) => a.marketplaceId);
     const retest = await s.req(`/request?ref=${encodeURIComponent(mp.id)}`);
     assert.match(retest.text, /\$5 retest/);
+    // An agent tested at its own address is prefilled with that address, which is what the grader prices as a retest.
+    const own = await s.req('/request?ref=cheap-first');
+    assert.match(own.text, /value="https:\/\/cheap-first\.vercel\.app\/api\/ask"/);
+    assert.match(own.text, /\$5 retest/);
     const listed = await s.req('/listed');
     assert.match(listed.text, /href="\/request\?ref=mcp%3Acom.acme%2Fweather">Test this agent/);
   } finally {
@@ -98,6 +102,10 @@ test('a request goes to the grader, gets a status page, and shows the grade requ
     assert.match(check.text, /<code>get_forecast<\/code>/);
     assert.equal(s.sent.at(-1).check, true);
     assert.equal(s.sent.at(-1).payment, undefined);
+    // Checking a tested agent at another address says why it costs $10, and which address is the $5 retest.
+    const other = await s.req('/request', { form: { ...good, payment: '', agent: 'https://cheap-first.vercel.app/', intent: 'check' } });
+    assert.match(other.text, /priced as a new test/);
+    assert.match(other.text, /<code>https:\/\/cheap-first\.vercel\.app\/api\/ask<\/code>/);
     const locked = await s.req('/request', { form: { ...good, payment: '', agent: 'https://locked.example/mcp', intent: 'check' } });
     assert.equal(locked.status, 400);
     assert.match(locked.text, /Check failed, nothing was paid/);

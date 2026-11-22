@@ -1,5 +1,5 @@
 // Checks whether listed agents answer, how fast, and what tools they offer. Runs twice a day (see vercel.json),
-// oldest-checked first, so every agent gets checked every few days. One short, polite visit per agent:
+// tested and claimed agents first, then oldest-checked first. One short, polite visit per agent:
 //   MCP agents: the standard MCP hello (initialize), then tools/list, then the session is closed.
 //   A2A agents: their public agent card (/.well-known/agent-card.json), which lists their skills.
 // Only public internet addresses are visited: anything that points at a private or local network is refused, and

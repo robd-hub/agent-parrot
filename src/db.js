@@ -474,10 +474,12 @@ export function openDb(client) {
         return { rows, total: total.n };
       },
       forTested: (id) => q('SELECT * FROM listed_agents WHERE tested_id = $1 ORDER BY source, source_id', [id]),
-      // Agents due a health check: never checked first, then the longest ago. Each is checked at most once a day.
-      dueForCheck: (limit) => q(`SELECT source, source_id, endpoint, details, x402 FROM listed_agents
+      // Agents due a health check: Polly Tested and claimed agents first (there are tens of thousands of others),
+      // then never checked, then the longest ago. Each is checked at most once a day.
+      dueForCheck: (limit) => q(`SELECT source, source_id, endpoint, details, x402 FROM listed_agents l
         WHERE endpoint IS NOT NULL AND (checked_at IS NULL OR checked_at < now() - interval '20 hours')
-        ORDER BY checked_at NULLS FIRST LIMIT $1`, [limit]),
+        ORDER BY (tested_id IS NOT NULL OR EXISTS (SELECT 1 FROM claims c WHERE c.agent_ref = l.source || ':' || l.source_id)) DESC,
+          checked_at NULLS FIRST LIMIT $1`, [limit]),
       async saveHealth(results) {
         for (let i = 0; i < results.length; i += 500) {
           const part = results.slice(i, i + 500);

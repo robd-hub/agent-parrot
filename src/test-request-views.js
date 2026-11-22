@@ -21,11 +21,11 @@ export function myRequestsBlock(rows = []) {
 
 const MCP_NOTE = 'Polly connects to it, picks the tools it can safely use (read-only ones), and runs real tasks through them. MCP servers get the core tasks only, with no honesty checks.';
 
-function checkBlock(check) {
+function checkBlock(check, tested = null) {
   if (!check) return '';
   if (!check.ok) return `<p class="error" role="alert"><b>Check failed, nothing was paid.</b> ${esc(check.error)}</p>`;
   const m = check.mcp;
-  return `<p class="notice" role="status"><b>Polly can test it.</b> ${m ? `It's an MCP server${m.name ? ` (${esc(m.name)})` : ''} with ${Number(m.tools)} ${m.tools === 1 ? 'tool' : 'tools'}${m.usable.length ? `; Polly will use ${m.usable.map((t) => `<code>${esc(t)}</code>`).join(', ')}` : ''}. ` : ''}Your price is <b>$${esc(check.priceUsd)}</b>${check.regrade ? ' (a retest)' : ''}. Pay below, then send your request.</p>`;
+  return `<p class="notice" role="status"><b>Polly can test it.</b> ${m ? `It's an MCP server${m.name ? ` (${esc(m.name)})` : ''} with ${Number(m.tools)} ${m.tools === 1 ? 'tool' : 'tools'}${m.usable.length ? `; Polly will use ${m.usable.map((t) => `<code>${esc(t)}</code>`).join(', ')}` : ''}. ` : ''}Your price is <b>$${esc(check.priceUsd)}</b>${check.regrade ? ' (a retest)' : ''}. Pay below, then send your request.</p>${tested && !check.regrade ? `<p class="notice">That isn't the address Polly tested ${esc(tested.name)} at, so it's priced as a new test.${tested.endpoint ? ` For the $${PRICE.retest} retest, use <code>${esc(tested.endpoint)}</code>.` : ''}</p>` : ''}`;
 }
 
 export function requestPage({ form = {}, agentRef = '', from = null, tested = null, error, field: badField, fallback = false, check = null, cardLink, payAddress, mine = [] }) {
@@ -43,7 +43,7 @@ export function requestPage({ form = {}, agentRef = '', from = null, tested = nu
       <p class="lead">Tell Polly where your agent lives and what it's for, pay, and get a public grade, usually within half an hour. $${PRICE.test} for a first test, $${PRICE.retest} for a retest.</p>
     </section>
     ${intro}
-    ${checkBlock(check)}
+    ${checkBlock(check, tested)}
     ${error ? `<p class="error" role="alert">${esc(error)}${fallback ? ` You can also <a href="${esc(GITHUB_FORM)}" target="_blank" rel="noopener">send the request on GitHub</a>.` : ''}</p>` : ''}
     <form method="post" action="/request" class="card section stack request-form" id="request-form" data-price="${price}" data-pay="${esc(payAddress)}">
       <input type="hidden" name="agentRef" value="${esc(agentRef)}">

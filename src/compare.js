@@ -62,7 +62,7 @@ async function loadBase(db, ref) {
 export async function findAgents(db, query, { limit = 12 } = {}) {
   const q = query.toLowerCase();
   const tested = allAgents().filter((a) => !q || a.name.toLowerCase().includes(q) || a.description.toLowerCase().includes(q))
-    .slice(0, q ? limit : 8).map((a) => ({ ref: a.id, name: a.name, grade: a.grade, note: `Polly Tested · Squawk Score ${a.score}` }));
+    .slice(0, q ? limit : undefined).map((a) => ({ ref: a.id, name: a.name, grade: a.grade, note: `Polly Tested · Squawk Score ${a.score}` }));
   if (!q) return tested;
   const { rows } = await db.listed.search({ query, limit: Math.max(0, limit - tested.length) || 4 });
   return [...tested, ...rows.map((r) => ({ ref: listedRef(r), name: r.name, grade: null, note: `${SOURCES[r.source]?.name ?? r.source}${r.maker_name ? ` · by ${r.maker_name}` : ''} · not Polly Tested` }))];

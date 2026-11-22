@@ -279,11 +279,21 @@ details summary { cursor: pointer; font-weight: 700; color: var(--green-ink); }
 .answer { white-space: pre-wrap; word-wrap: break-word; background: var(--surface-2); padding: 14px; border-radius: var(--radius-sm); font: .85rem/1.55 var(--mono); max-height: 420px; overflow: auto; }
 .cta-card { display: flex; gap: 20px; align-items: center; margin-top: 32px; background: var(--surface) var(--hero-glow); }
 @media (max-width: 600px) { .cta-card { flex-direction: column; align-items: flex-start; } }
+.list-cta { margin-top: 20px; }
+.list-cta h2 { font-size: 1.15rem; margin: 0 0 4px; }
+.list-cta p { margin: 0; }
+.list-cta > div:first-of-type { flex: 1; }
+.cta-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 
 table { width: 100%; border-collapse: collapse; }
 th, td { text-align: left; padding: 12px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
 th { font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
 .num { text-align: right; font-family: var(--mono); font-weight: 700; }
+/* Score columns: a plain header (not mono), centred over centred numbers so the two line up. */
+th.num { font-family: var(--body); }
+.agent-table .num, .pecking .num { text-align: center; font-variant-numeric: tabular-nums; }
+.agent-table td.num, .pecking td.num { font-size: 1.05rem; }
+.agent-table th.num + th, .agent-table td.num + td { padding-left: 18px; }
 .pecking .place { font: 800 1.2rem var(--head); color: var(--muted); width: 3em; }
 .pecking tr:nth-child(1) .place, .pecking tr:nth-child(2) .place, .pecking tr:nth-child(3) .place { color: var(--green-ink); }
 
@@ -357,6 +367,13 @@ th { font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; color:
 .footer { border-top: 1px solid var(--line); background: var(--surface); }
 .footer-inner { max-width: 1160px; margin: 0 auto; padding: 28px 16px; color: var(--muted); font-size: .9rem; }
 .footer-inner div { display: flex; align-items: center; gap: 10px; color: var(--ink); margin-bottom: 10px; }
+.footer-note { margin: 0 0 20px; max-width: 46rem; }
+.footer-inner .footer-cols { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; border-top: 1px solid var(--line); padding-top: 20px; }
+.footer-cols div { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin: 0; }
+.footer-cols h2 { font: 800 .75rem var(--body); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 2px; }
+.footer-cols a { color: var(--ink); text-decoration: none; }
+.footer-cols a:hover { color: var(--green-ink); text-decoration: underline; }
+@media (max-width: 700px) { .footer-inner .footer-cols { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 /* ----- Home: CoinGecko-style ranked table ----- */
 .wrap.wide { max-width: 1280px; }
@@ -373,6 +390,8 @@ th { font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; color:
 .hl-stack { display: grid; gap: 12px; padding: 0; border: 0; background: none; }
 .hl-stack .daily-teaser { padding: 14px 16px; }
 @media (max-width: 900px) { .highlights { grid-template-columns: 1fr; } }
+.highlights > * { min-width: 0; }
+.market-line { overflow-wrap: break-word; }
 .market { margin-top: 32px; }
 .market .tabs { margin-bottom: 12px; }
 .table-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
@@ -394,6 +413,7 @@ th { font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; color:
 .join-card h2 { margin-bottom: .3em; }
 @media (max-width: 980px) { .hide-md { display: none; } }
 @media (max-width: 640px) { .hide-sm { display: none; } .agent-cell .small { display: none; } .agent-cell a { min-width: 0; } }
+@media (max-width: 640px) { .agent-table th, .agent-table td { padding-left: 6px; padding-right: 6px; } .agent-table .place { width: 1.8em; } .agent-cell strong { overflow-wrap: anywhere; } .agent-cell img { display: none; } }
 .makers { margin-top: 32px; }
 .makers-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .maker-card { display: flex; gap: 12px; align-items: flex-start; padding: 16px 18px; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); color: var(--ink); text-decoration: none; }
@@ -496,6 +516,20 @@ th { font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; color:
 .tag-unclaimed { background: transparent; border: 1px dashed var(--line, #ccc); color: var(--muted, #666); font-weight: 600; text-decoration: none; }
 a.tag-claimed:hover, a.tag-unclaimed:hover { text-decoration: underline; }
 .agent-hero .tag-claimed, .agent-hero .tag-unclaimed { margin-bottom: 6px; }
+.claim-way { margin-top: 20px; }
+.claim-way h3 { display: flex; align-items: baseline; gap: 8px; }
+.claim-way form { margin: 14px 0 0; }
+.claim-way .muted.small { margin: 8px 0 0; }
+.or-divider { display: flex; align-items: center; gap: 12px; margin: 28px 0 8px; color: var(--muted); font-weight: 700; text-transform: uppercase; font-size: .78rem; letter-spacing: .08em; }
+.or-divider::before, .or-divider::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
+.claim-steps { padding-left: 1.4em; margin: 0; }
+.claim-steps > li { margin-bottom: 18px; padding-left: 4px; }
+.claim-steps > li::marker { font-weight: 800; color: var(--green-ink); }
+.claim-steps .invite-link { margin: 8px 0 0; }
+.claim-steps .plain-list { margin: 8px 0 0; overflow-wrap: anywhere; }
+.pick-grade { display: flex; align-items: baseline; gap: 8px; margin: 22px 0 10px; font-size: 1rem; }
+.pick-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.pick-list .agent-card { margin: 0; padding: 10px 12px; }
 .check-result { font-size: 1.05rem; }
 .check-result.ok b { color: var(--green-ink); }
 .check-result.bad b { color: var(--red, #c92a2a); }

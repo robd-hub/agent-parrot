@@ -310,6 +310,20 @@ test('the menu and footer reach every part of the site, and the home page says u
   assert.match(home.text, /AI agents, <em>Polly Tested<\/em>/);
 });
 
+test('layout: footer columns, the Pecking Order call to action and every tested agent in the Compare picker', async (t) => {
+  const s = await start();
+  t.after(s.close);
+  const home = await s.req('/');
+  const footer = /<footer[\s\S]*<\/footer>/.exec(home.text)[0];
+  for (const h of ['Agents', 'Get tested', 'Read', 'About']) assert.match(footer, new RegExp(`<h2>${h}</h2>`), h);
+  assert.equal((home.text.match(/class="pecking-mini"/g) || []).length, 2);
+  const pecking = await s.req('/pecking-order');
+  assert.match(pecking.text, /class="card cta-card list-cta"[\s\S]*href="\/get-polly-tested"[\s\S]*href="\/peek"/);
+  const pick = (await s.req('/compare?a=coder')).text;
+  for (const a of allAgents().filter((x) => x.id !== 'coder')) assert.match(pick, new RegExp(`compare\\?a=coder&amp;b=${a.id}"`), a.id);
+  for (const g of new Set(allAgents().map((a) => a.grade))) assert.match(pick, new RegExp(`Grade ${g} `), g);
+});
+
 test('signed-out visitors get cached pages; signed-in members never do', async (t) => {
   const s = await start();
   t.after(s.close);

@@ -4,6 +4,7 @@ import { ratingCell } from './review-views.js';
 import { GRADE_MEANING, categoryName } from './agents.js';
 import { makerPath } from './makers.js';
 import { securityFlags } from './security.js';
+import { flagItem } from './agent-report-views.js';
 import { licenceInfo, privacyInfo } from './openness.js';
 import { priceText, priceMissing, ago, licenceHtml, privacyHtml, reputationBlock } from './directory-views.js';
 
@@ -63,8 +64,12 @@ const cells = {
       ${r.up && r.latency_ms != null ? `<br>${r.latency_ms >= 1000 ? `${(r.latency_ms / 1000).toFixed(1)} seconds` : `${Number(r.latency_ms)} ms`} to answer` : ''}`;
   },
   security(p) {
-    if (!p.row) return muted(p.openserv ? 'Reached through the OpenServ marketplace: no public address of its own to check' : 'No public address listed, so nothing to check');
-    return `<ul class="flags compact">${securityFlags(p.row).map((f) => `<li class="flag flag-${esc(f.level)}"><span class="flag-icon" aria-hidden="true">${{ good: '✓', info: 'i', warn: '!', bad: '✕' }[f.level]}</span> ${esc(f.text)}</li>`).join('')}</ul>`;
+    const community = p.community ?? [];
+    if (!p.row) {
+      const none = muted(p.openserv ? 'Reached through the OpenServ marketplace: no public address of its own to check' : 'No public address listed, so nothing to check');
+      return community.length ? `<ul class="flags compact">${community.map(flagItem).join('')}</ul>${none}` : none;
+    }
+    return `<ul class="flags compact">${[...community, ...securityFlags(p.row)].map(flagItem).join('')}</ul>`;
   },
   tools(p) {
     const t = p.row?.health?.tools;

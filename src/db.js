@@ -158,6 +158,23 @@ const SCHEMA = `
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
   );
   CREATE INDEX IF NOT EXISTS review_actions_member ON review_actions (member_id, created_at);
+  -- Members reporting an agent (scam, broken, misleading, unsafe permissions, other). One open report per member per
+  -- agent. The organiser confirms or dismisses each one; only confirmed reports show as a community flag on the agent.
+  CREATE TABLE IF NOT EXISTS agent_reports (
+    id          SERIAL PRIMARY KEY,
+    agent_ref   TEXT NOT NULL,
+    member_id   TEXT NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+    reason      TEXT NOT NULL,
+    note        TEXT NOT NULL DEFAULT '',
+    -- open, confirmed or dismissed
+    status      TEXT NOT NULL DEFAULT 'open',
+    -- What the organiser wrote when confirming, shown on the agent's page.
+    public_note TEXT NOT NULL DEFAULT '',
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    reviewed_at TIMESTAMPTZ
+  );
+  CREATE INDEX IF NOT EXISTS agent_reports_ref ON agent_reports (agent_ref, status);
+  CREATE UNIQUE INDEX IF NOT EXISTS agent_reports_one_open ON agent_reports (agent_ref, member_id) WHERE status = 'open';
   -- Simple on/off switches the organiser flips from the admin pages, such as pausing The Daily Hallucination.
   CREATE TABLE IF NOT EXISTS settings (
     key   TEXT PRIMARY KEY,
@@ -465,6 +482,59 @@ export function openDb(client) {
              AND NOT EXISTS (SELECT 1 FROM reviews x WHERE x.agent_ref = l.tested_id AND x.member_id = r.member_id)`),
     },
 
+    // Members reporting an agent (see src/agent-reports.js). Rate limits reuse review_actions (kind 'agent-report').
+    agentReports: {
+      // Returns the new report's id, or null when this member already has an open report on this agent.
+      async add(ref, memberId, reason, note) {
+        await q("INSERT INTO review_actions (member_id, kind) VALUES ($1, 'agent-report')", [memberId]);
+        return (await one(
+          `INSERT INTO agent_reports (agent_ref, member_id, reason, note) VALUES ($1, $2, $3, $4)
+           ON CONFLICT (agent_ref, member_id) WHERE status = 'open' DO NOTHING RETURNING id`, [ref, memberId, reason, note]))?.id ?? null;
+      },
+      // This member's open report on this agent, if any.
+      mine: (ref, memberId) => one("SELECT id, reason, created_at FROM agent_reports WHERE agent_ref = $1 AND member_id = $2 AND status = 'open'", [ref, memberId]),
+      // For each ref: confirmed reports grouped by reason, and how many different members have open reports.
+      // { ref: { confirmed: [{ reason, members, last_at, public_note }], open: n } }
+      async summaries(refs) {
+        const list = [...new Set(refs.filter(Boolean))];
+        if (!list.length) return {};
+        const rows = await q(`SELECT agent_ref, reason, status, count(DISTINCT member_id)::int AS members, max(reviewed_at) AS last_at,
+            (array_agg(public_note ORDER BY reviewed_at DESC) FILTER (WHERE public_note <> ''))[1] AS public_note
+          FROM agent_reports WHERE agent_ref = ANY($1) AND status IN ('open', 'confirmed') GROUP BY agent_ref, reason, status`, [list]);
+        const out = {};
+        for (const r of rows) {
+          const s = (out[r.agent_ref] ??= { confirmed: [], open: 0 });
+          if (r.status === 'confirmed') s.confirmed.push({ reason: r.reason, members: r.members, last_at: r.last_at, public_note: r.public_note ?? '' });
+        }
+        const open = await q(`SELECT agent_ref, count(DISTINCT member_id)::int AS n FROM agent_reports
+          WHERE agent_ref = ANY($1) AND status = 'open' GROUP BY agent_ref`, [list]);
+        for (const r of open) (out[r.agent_ref] ??= { confirmed: [], open: 0 }).open = r.n;
+        return out;
+      },
+      // For the organiser: open reports first, then the newest checked ones, with who sent each.
+      forAdmin: () =>
+        q(`SELECT a.*, m.name, m.email, x.others FROM agent_reports a JOIN members m ON m.id = a.member_id
+           LEFT JOIN (SELECT agent_ref, count(DISTINCT member_id)::int AS others FROM agent_reports WHERE status = 'open' GROUP BY agent_ref) x
+             ON x.agent_ref = a.agent_ref
+           ORDER BY (a.status = 'open') DESC, a.created_at DESC LIMIT 300`),
+      get: (id) => one('SELECT * FROM agent_reports WHERE id = $1', [id]),
+      // Confirm, dismiss or reopen one report. Reopening is refused (returns null) if the member has sent a newer open one.
+      async setStatus(id, status, publicNote = '') {
+        try {
+          return await one(`UPDATE agent_reports SET status = $2, public_note = $3, reviewed_at = CASE WHEN $2 = 'open' THEN NULL ELSE now() END
+            WHERE id = $1 RETURNING id`, [id, status, status === 'confirmed' ? publicNote : '']);
+        } catch (e) {
+          if (e.code === '23505' || /unique|duplicate/i.test(e.message)) return null;
+          throw e;
+        }
+      },
+      // When a listed agent turns out to be one of our tested agents, its reports move with it (as reviews do).
+      adopt: () =>
+        q(`UPDATE agent_reports a SET agent_ref = l.tested_id FROM listed_agents l
+           WHERE l.tested_id IS NOT NULL AND a.agent_ref = l.source || ':' || l.source_id
+             AND NOT (a.status = 'open' AND EXISTS (SELECT 1 FROM agent_reports x WHERE x.agent_ref = l.tested_id AND x.member_id = a.member_id AND x.status = 'open'))`),
+    },
+
     game: {
       save: (day, memberId, correct, total) =>
         q('INSERT INTO game_results (day, member_id, correct, total) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING', [day, memberId, correct, total]),
@@ -505,7 +575,7 @@ export function openDb(client) {
     // Counts for the organiser's overview. Numbers only.
     async overview() {
       const joined = 'consent_at IS NOT NULL';
-      const [m, sources, inviters, roles, players, suggestions] = await Promise.all([
+      const [m, sources, inviters, roles, players, suggestions, reports] = await Promise.all([
         one(`SELECT count(*) FILTER (WHERE ${joined})::int AS joined,
                     count(*) FILTER (WHERE NOT (${joined}))::int AS started,
                     count(*) FILTER (WHERE ${joined} AND consent_at >= now() - interval '7 days')::int AS joined_7d,
@@ -517,8 +587,9 @@ export function openDb(client) {
         q(`SELECT COALESCE(role, '') AS role, count(*)::int AS n FROM members WHERE ${joined} GROUP BY 1 ORDER BY n DESC`),
         one("SELECT count(DISTINCT member_id)::int AS n FROM game_results WHERE created_at >= now() - interval '7 days'"),
         one("SELECT count(*)::int AS n FROM listings WHERE status = 'suggested'"),
+        one("SELECT count(*)::int AS n FROM agent_reports WHERE status = 'open'"),
       ]);
-      return { members: m, sources, inviters, roles, players7d: players.n, suggestions: suggestions.n };
+      return { members: m, sources, inviters, roles, players7d: players.n, suggestions: suggestions.n, openReports: reports.n };
     },
     close: () => client.close(),
   };

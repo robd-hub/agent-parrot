@@ -179,6 +179,15 @@ export const prepare = (rows) => rows.map((r) => ({ ...r, keep: r.keep && !hidde
 // end, later runs only ask for what changed since then.
 // Vercel lets a function run for up to 300 seconds; a run stops starting new batches after budgetMs. The MCP
 // Registry gets the first 60% when ERC-8004 is on too, so both make progress on every run.
+// Bump this when fromMcp or fromErc8004 starts saving a new field. A source whose saved progress has an older number
+// is read again from the start, so entries copied before the change get the new fields too (a later run only asks
+// for entries changed since, and an entry nobody has touched in the registry would otherwise keep its old copy).
+export const FIELDS_VERSION = 2;
+const readState = async (db, key) => {
+  const state = JSON.parse((await db.settings.get(key)) || '{}');
+  return state.v === FIELDS_VERSION ? state : {};
+};
+
 export async function syncDirectories({ db, config, fetchFn = fetch, budgetMs = 200000, now = () => new Date() }) {
   const started = Date.now();
   const timeLeft = () => Date.now() - started < budgetMs;
@@ -187,7 +196,7 @@ export async function syncDirectories({ db, config, fetchFn = fetch, budgetMs = 
 
   // MCP Registry
   {
-    const state = JSON.parse((await db.settings.get('sync_mcp')) || '{}');
+    const state = await readState(db, 'sync_mcp');
     let { cursor = null, since = null, runStart = null } = state;
     runStart ??= now().toISOString();
     let saved = 0;
@@ -204,14 +213,14 @@ export async function syncDirectories({ db, config, fetchFn = fetch, budgetMs = 
         removed += res.removed;
         cursor = page.cursor;
         // Saved after every batch, so a run that gets cut off still carries on from here next time.
-        if (cursor) await db.settings.set('sync_mcp', JSON.stringify({ cursor, since, runStart }));
+        if (cursor) await db.settings.set('sync_mcp', JSON.stringify({ cursor, since, runStart, v: FIELDS_VERSION }));
       } while (cursor && next);
       const done = !cursor;
-      await db.settings.set('sync_mcp', JSON.stringify(done ? { since: runStart } : { cursor, since, runStart }));
+      await db.settings.set('sync_mcp', JSON.stringify(done ? { since: runStart, v: FIELDS_VERSION } : { cursor, since, runStart, v: FIELDS_VERSION }));
       if (done) await db.settings.set('sync_mcp_at', now().toISOString());
       report.push({ source: 'mcp', saved, removed, done });
     } catch (err) {
-      await db.settings.set('sync_mcp', JSON.stringify({ cursor, since, runStart }));
+      await db.settings.set('sync_mcp', JSON.stringify({ cursor, since, runStart, v: FIELDS_VERSION }));
       report.push({ source: 'mcp', saved, removed, done: false, error: err.message });
     }
   }
@@ -227,7 +236,7 @@ export async function syncDirectories({ db, config, fetchFn = fetch, budgetMs = 
     const errors = [];
     for (const key of chains) {
       const chain = ERC8004_CHAINS[key];
-      const state = JSON.parse((await db.settings.get(`sync_erc8004_${key}`)) || '{}');
+      const state = await readState(db, `sync_erc8004_${key}`);
       let { after = '', since = 0, runStart = null } = state;
       runStart ??= Math.floor(now().getTime() / 1000);
       if (!timeLeft()) {
@@ -241,14 +250,14 @@ export async function syncDirectories({ db, config, fetchFn = fetch, budgetMs = 
           saved += res.saved;
           removed += res.removed;
           after = page.after;
-          if (after) await db.settings.set(`sync_erc8004_${key}`, JSON.stringify({ after, since, runStart }));
+          if (after) await db.settings.set(`sync_erc8004_${key}`, JSON.stringify({ after, since, runStart, v: FIELDS_VERSION }));
         } while (after && timeLeft());
-        await db.settings.set(`sync_erc8004_${key}`, JSON.stringify(after ? { after, since, runStart } : { since: runStart }));
+        await db.settings.set(`sync_erc8004_${key}`, JSON.stringify(after ? { after, since, runStart, v: FIELDS_VERSION } : { since: runStart, v: FIELDS_VERSION }));
         if (after) done = false;
       } catch (err) {
         done = false;
         errors.push(err.message);
-        await db.settings.set(`sync_erc8004_${key}`, JSON.stringify({ after, since, runStart }));
+        await db.settings.set(`sync_erc8004_${key}`, JSON.stringify({ after, since, runStart, v: FIELDS_VERSION }));
       }
     }
     if (done) await db.settings.set('sync_erc8004_at', now().toISOString());

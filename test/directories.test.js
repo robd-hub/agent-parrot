@@ -109,6 +109,18 @@ test('sync copies the MCP Registry, skips ERC-8004 without a key, and the /liste
   calls.length = 0;
   await syncDirectories({ db: s.db, config, fetchFn: fakeFetch(calls) });
   assert.ok(calls[0].includes('updated_since='));
+
+  // Progress saved before a new field was added (no version number) means one full read again, so entries
+  // nobody has changed in the registry since still get the new fields.
+  await s.db.settings.set('sync_mcp', JSON.stringify({ since: '2026-11-20T00:00:00Z' }));
+  await s.db.listed.save([{ ...fromMcp(mcp('com.example/weather', { title: 'Weather Bot' })), maker_key: null, details: null }]);
+  calls.length = 0;
+  await syncDirectories({ db: s.db, config, fetchFn: fakeFetch(calls) });
+  assert.ok(!calls[0].includes('updated_since='), 'an old copy is read again from the start');
+  assert.equal((await s.db.listed.get('mcp', 'com.example/weather')).maker_key, 'web:example.com', 'the missing maker is filled in');
+  calls.length = 0;
+  await syncDirectories({ db: s.db, config, fetchFn: fakeFetch(calls) });
+  assert.ok(calls[0].includes('updated_since='), 'and only once');
 });
 
 test('ERC-8004 is read when a Graph key is set; a run that hits its time limit carries on next time', async (t) => {

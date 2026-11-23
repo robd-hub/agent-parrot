@@ -413,6 +413,20 @@ th.num { font-family: var(--body); }
 .task-bars .bar.none { height: 8%; background: var(--line); }
 .join-card h2 { margin-bottom: .3em; }
 @media (max-width: 980px) { .hide-md { display: none; } }
+/* On a phone the Pecking Order fits without sideways scrolling: honesty moves under the name. */
+.show-sm { display: none; }
+@media (max-width: 640px) {
+  .show-sm { display: block; margin-top: 4px; }
+  .pecking td .show-sm .tag { margin-left: 0; }
+  .table-scroll.card:has(.pecking) { padding-left: 8px; padding-right: 8px; }
+  .pecking th, .pecking td { padding: 10px 5px; }
+  .pecking th { letter-spacing: .02em; font-size: .7rem; }
+  .pecking { table-layout: fixed; }
+  .pecking th:nth-child(1) { width: 2.2em; }
+  .pecking th:nth-child(3) { width: 4.4em; }
+  .pecking th:nth-child(4) { width: 4.4em; }
+  .pecking .place { width: 1.8em; font-size: 1rem; }
+}
 @media (max-width: 640px) { .hide-sm { display: none; } .agent-cell .small { display: none; } .agent-cell a { min-width: 0; } }
 @media (max-width: 640px) { .agent-table th, .agent-table td { padding-left: 6px; padding-right: 6px; } .agent-table .place { width: 1.8em; } .agent-cell strong { overflow-wrap: anywhere; } .agent-cell img { display: none; } }
 .makers { margin-top: 32px; }

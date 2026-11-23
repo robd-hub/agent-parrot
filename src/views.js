@@ -566,7 +566,7 @@ export function signInPage({ providers, emailLogin, error, mode = 'signin' }) {
       <img src="/parrot.svg" width="64" height="64" alt="">
       <h1>${title}</h1>
       <p>${signup
-        ? 'Free. Keep a game streak, suggest agents, and get The Squawk, our weekly email.'
+        ? 'Free. Claim your own agent and get its badge, review the agents you use, keep a game streak and get The Squawk, our weekly email.'
         : 'Welcome back. Pick the way you joined.'}</p>
       ${error ? `<p class="error">${esc(error)}</p>` : ''}
       ${providers.length ? signInButtons(providers) : ''}
@@ -665,6 +665,18 @@ export function mePage({ member, inviteCode, invited, streak, claims = '' }) {
       <form method="post" action="/logout" class="inline"><button type="submit" class="ghost">Sign out</button></form>
       <form method="post" action="/remove" class="inline" onsubmit="return confirm('Remove your membership and everything we hold about you?')"><button type="submit" class="danger">Remove me completely</button></form>
     </section>`);
+}
+
+// On a member's perch until they've claimed an agent: the three things a builder can do here.
+export function builderStartBlock({ peekOpen = false } = {}) {
+  return `<section class="card section builder-start">
+    <h2>Built an agent?</h2>
+    <ul class="plain-list">
+      <li><a href="/listed">Find it in All agents</a>, open its page and press <b>Is this yours? Claim it</b>. Free, and you get a badge for your site or README.</li>
+      ${peekOpen ? '<li><a href="/peek">Run a free Polly Peek</a>: a quick look in about a minute, private to you.</li>' : ''}
+      <li><a href="/request">Request a Polly Test</a>: real tasks, two judges and a public grade. $10.</li>
+    </ul>
+  </section>`;
 }
 
 export function removedPage() {

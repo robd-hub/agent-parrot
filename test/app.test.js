@@ -234,6 +234,29 @@ test('sign in with GitHub, join, keep a streak, invite, then remove yourself', a
   assert.equal(await s.db.count(), 0);
 });
 
+test('signing in from an agent page brings you back to it, after joining if you are new', async (t) => {
+  const s = await start();
+  t.after(s.close);
+  await s.req('/signin?next=%2Fclaim%3Fref%3Dcoder');
+  const go = await s.req('/auth/github');
+  const state = new URL(go.location).searchParams.get('state');
+  assert.equal((await s.req(`/auth/github/callback?code=abc&state=${state}`)).location, '/join');
+  const me = await s.req('/me');
+  assert.equal(me.location, '/join');
+  assert.equal((await s.req('/join', { method: 'POST', form: { consent: 'yes' } })).location, '/claim?ref=coder');
+  // Used once: the next sign-in goes to the perch as usual.
+  const again = await s.req('/auth/google');
+  const gState = new URL(again.location).searchParams.get('state');
+  assert.equal((await s.req(`/auth/google/callback?code=x&state=${gState}`)).location, '/me');
+  // A perch with no claimed agent shows a builder where to start.
+  assert.match((await s.req('/me')).text, /Built an agent\?/);
+  // Only paths on this site are followed.
+  for (const bad of ['https://evil.example/', '//evil.example', '/\\evil.example']) {
+    await s.req(`/signin?next=${encodeURIComponent(bad)}`);
+  }
+  assert.equal((await s.req('/signin?next=%2F%2Fevil.example')).location, '/me');
+});
+
 test('one person signing in two ways gets one account', async () => {
   const db = await connect();
   const a = await db.recordLogin({ id: 'github:1', name: 'Ada', email: 'ada@example.com', email_verified: true });

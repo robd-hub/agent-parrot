@@ -404,10 +404,10 @@ export function notOnTheList() {
 export function peckingOrderPage({ rows, category }) {
   const body = rows.map((a) => `<tr>
       <td class="place">${Number(a.place)}</td>
-      <td><a href="/agents/${esc(a.id)}"><strong>${esc(a.name)}</strong></a><br><span class="muted small">${esc(categoryName(a.category))}</span></td>
+      <td><a href="/agents/${esc(a.id)}"><strong>${esc(a.name)}</strong></a><br><span class="muted small">${esc(categoryName(a.category))}</span><span class="show-sm"> ${honestyTag(a.honesty)}</span></td>
       <td>${gradeBadge(a.grade, { size: 'sm' })}</td>
       <td class="num">${Number(a.score)}</td>
-      <td>${honestyTag(a.honesty)}</td></tr>`).join('');
+      <td class="hide-sm">${honestyTag(a.honesty)}</td></tr>`).join('');
   return layout('The Pecking Order', `
     <section class="page-head">
       <p class="eyebrow">Leaderboard</p>
@@ -416,7 +416,7 @@ export function peckingOrderPage({ rows, category }) {
     </section>
     ${categoryTabs('/pecking-order', category)}
     <div class="card table-scroll"><table class="pecking">
-      <thead><tr><th>#</th><th>Agent</th><th>Grade</th><th class="num"><span class="hide-sm">Squawk </span>Score</th><th>Honesty</th></tr></thead>
+      <thead><tr><th>#</th><th>Agent</th><th>Grade</th><th class="num"><span class="hide-sm">Squawk </span>Score</th><th class="hide-sm">Honesty</th></tr></thead>
       <tbody>${body || '<tr><td colspan="5" class="muted">No agents in this category yet.</td></tr>'}</tbody>
     </table></div>
     ${notOnTheList()}`, { description: 'The Pecking Order: every Polly Tested AI agent, ranked by Squawk Score.' });

@@ -31,7 +31,7 @@ export const healthTag = (r) => (!r.checked_at ? '' : r.up ? '<span class="tag t
 const toolsOf = (r) => r.health?.tools ?? null;
 export function healthRows(r) {
   if (!r.endpoint) return [row('Health check', '', 'No address to check')];
-  if (!r.checked_at) return [row('Health check', '', 'Not checked yet: every agent is checked every few days')];
+  if (!r.checked_at) return [row('Health check', '', 'Not checked yet: Polly works through every listed agent, tested and claimed ones first')];
   const h = r.health ?? {};
   const uptime = r.checks ? Math.round((100 * r.up_checks) / r.checks) : null;
   return [

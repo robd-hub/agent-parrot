@@ -114,3 +114,13 @@ test('health runs save results, show on the pages, and each agent is checked onc
   assert.match(await get('/admin/directories', { headers: admin }), /3<\/b> of 3 checked/);
   assert.equal((await fetch(`${base}/api/cron/health`)).status, 200);
 });
+
+test('claimed agents are checked before the tens of thousands of others', async () => {
+  const db = await connect();
+  const entry = (name, url) => ({ server: { name, title: name.split('/')[1], description: 'x', version: '1', remotes: [{ type: 'streamable-http', url }] }, _meta: { [META]: { status: 'active', isLatest: true } } });
+  await db.listed.save(prepare(['a', 'b', 'c'].map((n) => fromMcp(entry(`com.${n}/agent`, `https://${n}.example/mcp`)))));
+  const uid = await db.recordLogin({ id: 'github:7', name: 'Maker', email: 'maker@example.com', email_verified: true, github_login: 'maker' });
+  await db.claims.save('mcp:com.c/agent', uid, 'github', 'GitHub sign-in as maker');
+  const [first] = await db.listed.dueForCheck(1);
+  assert.equal(first.source_id, 'com.c/agent');
+});

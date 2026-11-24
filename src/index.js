@@ -42,6 +42,14 @@ const config = {
   // as LITE_SECRET on the grader). Without it Polly Peeks are off. LITE_MONTHLY_USD is the monthly AI spend stop (default 15).
   liteSecret: env.LITE_SECRET,
   liteMonthlyUsd: env.LITE_MONTHLY_USD,
+  // Grades API paid plans (src/api-keys.js): Stripe Payment Links for the Developer ($29) and Business ($99) plans.
+  // Without them the key page asks people to get in touch. Rob sets a key's plan at /admin/api once a payment comes in.
+  apiDeveloperLink: env.API_DEVELOPER_LINK,
+  apiBusinessLink: env.API_BUSINESS_LINK,
+  // Pay-per-call grade history over x402: the wallet that receives USDC on Base. Off until it is set.
+  x402PayTo: env.X402_PAY_TO,
+  x402Facilitator: (env.X402_FACILITATOR_URL || 'https://facilitator.payai.network').replace(/\/$/, ''),
+  x402LookupUsd: Number(env.X402_LOOKUP_USD) || 0.002,
   logEmails: !isProd && !env.VERCEL,
   devFakeLogin: !isProd && !env.VERCEL && env.DEV_FAKE_LOGIN === '1',
 };

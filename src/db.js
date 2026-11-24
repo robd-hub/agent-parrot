@@ -236,6 +236,50 @@ const SCHEMA = `
   );
   CREATE INDEX IF NOT EXISTS lite_checks_agent ON lite_checks (agent_key, created_at);
   CREATE INDEX IF NOT EXISTS lite_checks_member ON lite_checks (member_id, created_at);
+  -- Grades API keys (src/api-keys.js). Only a hash of each key is kept; prefix is the first few characters, for display.
+  -- plan is starter (free), developer or business. A paid plan counts until paid_until, then the key acts as starter.
+  CREATE TABLE IF NOT EXISTS api_keys (
+    id             TEXT PRIMARY KEY,
+    member_id      TEXT REFERENCES members (id) ON DELETE CASCADE,
+    key_hash       TEXT NOT NULL UNIQUE,
+    prefix         TEXT NOT NULL,
+    label          TEXT NOT NULL DEFAULT '',
+    plan           TEXT NOT NULL DEFAULT 'starter',
+    paid_until     TIMESTAMPTZ,
+    webhook_url    TEXT,
+    webhook_secret TEXT,
+    webhook_status TEXT,
+    webhook_at     TIMESTAMPTZ,
+    last_used_at   TIMESTAMPTZ,
+    revoked_at     TIMESTAMPTZ,
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+  CREATE INDEX IF NOT EXISTS api_keys_member ON api_keys (member_id);
+  -- Calls per key per UTC day, for the daily limit and the admin page.
+  CREATE TABLE IF NOT EXISTS api_usage (
+    key_id TEXT NOT NULL REFERENCES api_keys (id) ON DELETE CASCADE,
+    day    TEXT NOT NULL,
+    calls  INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (key_id, day)
+  );
+  -- Pay-per-lookup calls paid in USDC over x402, settled by the facilitator. tx is the on-chain transaction.
+  CREATE TABLE IF NOT EXISTS api_payments (
+    id         SERIAL PRIMARY KEY,
+    tx         TEXT,
+    payer      TEXT,
+    network    TEXT,
+    resource   TEXT NOT NULL,
+    usd        NUMERIC NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+  -- The last grade each agent had when grade webhooks were sent, so the next run only sends what changed.
+  CREATE TABLE IF NOT EXISTS grade_snapshots (
+    agent_id  TEXT PRIMARY KEY,
+    grade     TEXT,
+    score     INTEGER,
+    graded_at TEXT,
+    seen_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
   -- Simple on/off switches the organiser flips from the admin pages, such as pausing The Daily Hallucination.
   CREATE TABLE IF NOT EXISTS settings (
     key   TEXT PRIMARY KEY,
@@ -688,6 +732,39 @@ export function openDb(client) {
       setIssue: (id, { state, comments, closedAt }) =>
         q('UPDATE test_requests SET issue_state = $2, issue_comments = $3, issue_closed_at = $4, issue_checked_at = now() WHERE id = $1', [id, state, comments, closedAt]),
       mine: (memberId) => q('SELECT * FROM test_requests WHERE member_id = $1 ORDER BY created_at DESC LIMIT 20', [memberId]),
+    },
+
+    // Grades API keys, usage, x402 payments and webhook snapshots (see src/api-keys.js).
+    apiKeys: {
+      create: ({ id, memberId, keyHash, prefix, label }) =>
+        one('INSERT INTO api_keys (id, member_id, key_hash, prefix, label) VALUES ($1, $2, $3, $4, $5) RETURNING *', [id, memberId, keyHash, prefix, label]),
+      byHash: (keyHash) => one('SELECT * FROM api_keys WHERE key_hash = $1 AND revoked_at IS NULL', [keyHash]),
+      get: (id) => one('SELECT * FROM api_keys WHERE id = $1', [id]),
+      mine: (memberId) => q("SELECT k.*, coalesce(u.calls, 0)::int AS today FROM api_keys k LEFT JOIN api_usage u ON u.key_id = k.id AND u.day = to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD') WHERE k.member_id = $1 AND k.revoked_at IS NULL ORDER BY k.created_at", [memberId]),
+      countMine: async (memberId) => Number((await one('SELECT count(*) AS n FROM api_keys WHERE member_id = $1 AND revoked_at IS NULL', [memberId])).n),
+      revoke: (id, memberId) => q('UPDATE api_keys SET revoked_at = now() WHERE id = $1 AND member_id = $2', [id, memberId]),
+      setPlan: (id, plan, paidUntil) => q('UPDATE api_keys SET plan = $2, paid_until = $3 WHERE id = $1', [id, plan, paidUntil]),
+      setWebhook: (id, memberId, url, secret) => q('UPDATE api_keys SET webhook_url = $3, webhook_secret = coalesce(webhook_secret, $4), webhook_status = NULL WHERE id = $1 AND member_id = $2', [id, memberId, url, secret]),
+      webhookResult: (id, status) => q('UPDATE api_keys SET webhook_status = $2, webhook_at = now() WHERE id = $1', [id, status]),
+      withWebhooks: (nowIso) => q("SELECT * FROM api_keys WHERE revoked_at IS NULL AND webhook_url IS NOT NULL AND plan IN ('developer', 'business') AND paid_until > $1", [nowIso]),
+      // Counts one call and returns the day's total so far.
+      async countCall(id, day) {
+        const r = await one(`INSERT INTO api_usage (key_id, day, calls) VALUES ($1, $2, 1)
+                             ON CONFLICT (key_id, day) DO UPDATE SET calls = api_usage.calls + 1 RETURNING calls`, [id, day]);
+        q('UPDATE api_keys SET last_used_at = now() WHERE id = $1', [id]).catch(() => {});
+        return Number(r.calls);
+      },
+      forAdmin: (day) => q(`SELECT k.*, m.name AS member_name, coalesce(u.calls, 0)::int AS today FROM api_keys k
+                            LEFT JOIN members m ON m.id = k.member_id LEFT JOIN api_usage u ON u.key_id = k.id AND u.day = $1
+                            ORDER BY k.revoked_at IS NOT NULL, k.created_at DESC LIMIT 300`, [day]),
+      recordPayment: ({ tx, payer, network, resource, usd }) =>
+        q('INSERT INTO api_payments (tx, payer, network, resource, usd) VALUES ($1, $2, $3, $4, $5)', [tx ?? null, payer ?? null, network ?? null, resource, usd]),
+      payments: () => q('SELECT * FROM api_payments ORDER BY created_at DESC LIMIT 50'),
+      paymentTotal: async (since) => one('SELECT count(*)::int AS n, coalesce(sum(usd), 0)::float AS usd FROM api_payments WHERE created_at >= $1', [since]),
+      snapshots: () => q('SELECT * FROM grade_snapshots'),
+      saveSnapshot: ({ agentId, grade, score, gradedAt }) =>
+        q(`INSERT INTO grade_snapshots (agent_id, grade, score, graded_at) VALUES ($1, $2, $3, $4)
+           ON CONFLICT (agent_id) DO UPDATE SET grade = $2, score = $3, graded_at = $4, seen_at = now()`, [agentId, grade, score, gradedAt]),
     },
 
     // Free Polly Peeks (see src/lite-checks.js).

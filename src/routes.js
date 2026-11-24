@@ -16,6 +16,7 @@ import { emailSender } from './email.js';
 import { squawkRoutes } from './squawk.js';
 import { directoryRoutes } from './directory-routes.js';
 import { feedRoutes } from './feed.js';
+import { apiKeyRoutes } from './api-keys.js';
 import { listedOn } from './directories.js';
 import { listedOnBlock, testedDetailsBlock } from './directory-views.js';
 import { reputationFor } from './directory-routes.js';
@@ -414,7 +415,8 @@ export function createRoutes({
 
   app.use(squawkRoutes({ db, config, adminOnly, sendEmail, now }));
   app.use(directoryRoutes({ db, config, adminOnly, fetchFn, lookup }));
-  app.use(feedRoutes({ config }));
+  app.use(feedRoutes({ config, db, fetchFn, now }));
+  app.use(apiKeyRoutes({ db, config, adminOnly, fetchFn, lookup, now }));
   app.use(compareRoutes({ db }));
   app.use(reviewRoutes({ db, adminOnly }));
   app.use(agentReportRoutes({ db, adminOnly }));
@@ -499,7 +501,7 @@ export function createRoutes({
 
   app.get('/robots.txt', (req, res) => {
     res.type('text/plain').send(['User-agent: *',
-      ...['/admin', '/auth', '/api', '/join', '/me', '/signin', '/signup', '/logout', '/remove', '/claim', '/lite/'].map((p) => `Disallow: ${p}`),
+      ...['/admin', '/auth', '/api', '/join', '/me', '/signin', '/signup', '/logout', '/remove', '/claim', '/lite/', '/api-keys'].map((p) => `Disallow: ${p}`),
       '', `Sitemap: ${config.baseUrl}/sitemap.xml`, ''].join('\n'));
   });
 

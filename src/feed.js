@@ -5,6 +5,7 @@ import express from 'express';
 import { allAgents, agentById, SYNCED_AT } from './agents.js';
 import { testedAgentFor, ownListings } from './directories.js';
 import { esc, layout } from './views.js';
+import { apiAccess, historyHandler, PLANS } from './api-keys.js';
 
 const FEED_VERSION = 1;
 
@@ -29,7 +30,7 @@ export function feedAgent(a, { baseUrl, graderUrl }) {
   };
 }
 
-export function feedRoutes({ config }) {
+export function feedRoutes({ config, db, fetchFn = fetch, now = () => new Date() }) {
   const app = express.Router();
   const urls = { baseUrl: config.baseUrl, graderUrl: config.graderUrl };
   const source = () => ({
@@ -39,14 +40,15 @@ export function feedRoutes({ config }) {
   });
   const scale = { A: '90 to 100', B: '80 to 89', C: '70 to 79', D: '60 to 69', F: 'under 60' };
 
-  // Anyone can read the feed, from any website.
-  app.use('/api/grades', (req, res, next) => {
-    res.set({ 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=3600' });
-    next();
-  });
+  // Anyone can read the feed, from any website, with or without a key. A key adds a known daily limit and, on a paid
+  // plan, grade history and webhooks (src/api-keys.js). Answers to keyed calls are never kept by the CDN.
+  const access = apiAccess({ db, now });
+  app.use('/api/grades.json', access);
+  app.use('/api/grades', access);
+  const cache = (req, res) => { if (!req.apiKey) res.set('Cache-Control', 'public, s-maxage=600, stale-while-revalidate=3600'); };
 
   app.get('/api/grades.json', (req, res) => {
-    res.set({ 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=3600' });
+    cache(req, res);
     res.json({ version: FEED_VERSION, source: source(), updatedAt: SYNCED_AT, scale, count: allAgents().length,
       agents: allAgents().map((a) => feedAgent(a, urls)) });
   });
@@ -56,24 +58,28 @@ export function feedRoutes({ config }) {
   app.get('/api/grades/lookup', (req, res) => {
     const str = (k) => (typeof req.query[k] === 'string' ? req.query[k].slice(0, 300) : '');
     const [mcp, erc, url] = [str('mcp'), str('erc8004'), str('url')];
+    cache(req, res);
     if (!mcp && !erc && !url) return res.status(400).json({ error: 'Give mcp, erc8004 or url.' });
     const row = mcp ? { source: 'mcp', source_id: mcp, url } : erc ? { source: 'erc8004', source_id: erc, url } : { source: '', source_id: '', url };
     const agent = testedAgentFor(row);
     res.json(agent ? { graded: true, source: source().name, agent: feedAgent(agent, urls) } : { graded: false, test: `${config.baseUrl}/get-polly-tested` });
   });
 
+  app.get('/api/grades/:id/history.json', historyHandler({ db, config, fetchFn, source }));
+
   app.get('/api/grades/:id.json', (req, res) => {
+    cache(req, res);
     const agent = agentById(req.params.id);
     if (!agent) return res.status(404).json({ error: 'No graded agent with that id.' });
     res.json({ version: FEED_VERSION, source: source(), agent: feedAgent(agent, urls) });
   });
 
-  app.get('/feed', (req, res) => res.send(feedPage({ baseUrl: config.baseUrl, count: allAgents().length, example: allAgents()[0] })));
+  app.get('/feed', (req, res) => res.send(feedPage({ baseUrl: config.baseUrl, count: allAgents().length, example: allAgents()[0], x402: Boolean(config.x402PayTo), x402Usd: config.x402LookupUsd })));
 
   return app;
 }
 
-export function feedPage({ baseUrl, count, example }) {
+export function feedPage({ baseUrl, count, example, x402 = false, x402Usd = 0.002 }) {
   const sample = example ? `{
   "id": "${example.id}",
   "name": "${example.name}",
@@ -88,7 +94,7 @@ export function feedPage({ baseUrl, count, example }) {
       <p class="eyebrow">For directories and developers</p>
       <h1>Use our grades</h1>
       <p class="lead">Run a directory, marketplace or registry of AI agents? Show your users which ones have been tested.
-        All ${Number(count)} grades are free to read as JSON. No key, no sign-up.</p>
+        All ${Number(count)} grades are free to read as JSON. No key, no sign-up. Need more? See the <a href="#plans">plans</a>.</p>
     </section>
     <section class="card section">
       <h2>Every grade</h2>
@@ -105,6 +111,27 @@ export function feedPage({ baseUrl, count, example }) {
         <li><code>/api/grades/lookup?url=https://example.com</code></li>
       </ul>
       <p class="muted">Not graded yet? The answer links to where its builder can get it tested.</p>
+    </section>
+    <section class="card section" id="plans">
+      <h2>Plans</h2>
+      <p>The feed above stays free with no key. A key gives you a known daily limit, and the paid plans add every past
+        grade and a webhook when grades change. Paying never changes a grade or a ranking.</p>
+      <div class="table-scroll"><table><thead><tr><th>Plan</th><th>Price</th><th>Calls</th><th>Grade history</th><th>Webhooks</th><th>Commercial use</th></tr></thead><tbody>
+        ${Object.values(PLANS).map((p) => `<tr><td>${esc(p.name)}</td><td>${esc(p.price)}</td><td>${p.perDay ? `${Number(p.perDay).toLocaleString('en-US')} a day` : `${Number(p.perHour)} an hour`}</td>
+          <td>${p.history ? 'Yes' : ''}</td><td>${p.webhooks ? 'Yes' : ''}</td><td>${p.commercial ? 'Yes' : p.price === 'Free' ? 'With credit' : 'Small teams'}</td></tr>`).join('')}
+      </tbody></table></div>
+      <p><a class="btn" href="/api-keys">Get a free key</a></p>
+      <h2>Using a key</h2>
+      <pre class="answer">curl -H "Authorization: Bearer ap_your_key" ${esc(baseUrl)}/api/grades.json</pre>
+      <p class="muted">Every answer carries <code>X-RateLimit-Limit</code> and <code>X-RateLimit-Remaining</code>. <code>${esc(baseUrl)}/api/account</code> shows your plan and today's calls.</p>
+      <h2>Grade history (paid plans)</h2>
+      <p><code>${esc(baseUrl)}/api/grades/&lt;id&gt;/history.json</code>: every past run's grade and score, oldest first.</p>
+      ${x402 ? `<p>No key? Agents can pay per call: the address answers <code>402 Payment Required</code> with x402 payment details,
+        $${esc(String(x402Usd))} in USDC on Base a call. Send the signed payment in the <code>X-PAYMENT</code> header.</p>` : ''}
+      <h2>Webhooks (paid plans)</h2>
+      <p>Add an https address on your key's page. Once a day, when any grade changes, it gets a <code>POST</code> with
+        <code>{"event": "grades.updated", "changes": [...]}</code>, signed in the <code>X-Signature-256</code> header
+        (HMAC SHA-256 of the body with your webhook secret).</p>
     </section>
     <section class="card section">
       <h2>The small print</h2>

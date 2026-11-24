@@ -45,6 +45,13 @@ Rules and commands are in `CLAUDE.md`. Update this file when something below cha
   only; `/peek` goes to `/lite`). `/admin/lite` lets Rob run checks; members can't until he ticks "Open to members".
   Not built yet: Polly Peek buttons on `/listed` and agent pages (step 4, needs Rob's OK).
 
+## In review
+
+- Paid grades API (branch `claude/paid-grades-api`): API keys at `/api-keys`, Starter/Developer/Business plans, grade
+  history and webhooks for paid keys, pay-per-call history over x402, `/admin/api`. Needs from Rob in Vercel:
+  `API_DEVELOPER_LINK` and `API_BUSINESS_LINK` (Stripe Payment Links) and `X402_PAY_TO` (wallet). Plans are switched
+  on by hand at `/admin/api`; automatic Stripe billing is not built.
+
 ## Waiting on Rob
 
 1. Buy the domains agentparrot.ai and agentparrots.com (about $170, Rob buys them on Cloudflare himself).
